@@ -1,11 +1,13 @@
 import type { Server } from 'node:http';
 import { fileURLToPath } from 'node:url';
-import express, { type Express } from 'express';
+import type { Express } from 'express';
+import { createApp as createTyphoonApp } from './app.js';
+import { createPortalLoader, TyphoonService } from './typhoon-service.js';
 
 const defaultPort = 8787;
 
-export function createApp(): Express {
-  return express();
+export function createApp(service = new TyphoonService(createPortalLoader())): Express {
+  return createTyphoonApp(service);
 }
 
 export function startServer(app: Express = createApp(), port = Number(process.env.PORT ?? defaultPort)): Server {
@@ -14,6 +16,12 @@ export function startServer(app: Express = createApp(), port = Number(process.en
   });
 }
 
+export async function startTyphoonServer(port = Number(process.env.PORT ?? defaultPort)): Promise<Server> {
+  const service = new TyphoonService(createPortalLoader());
+  await service.refresh();
+  return startServer(createApp(service), port);
+}
+
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
-  startServer();
+  void startTyphoonServer();
 }

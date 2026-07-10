@@ -2,8 +2,26 @@ import { once } from 'node:events';
 import { request } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { expect, test } from 'vitest';
-import { createApp, startServer } from './index';
+import { createApp } from './app.js';
+import type { Typhoon } from './domain.js';
 import { TyphoonService } from './typhoon-service.js';
+
+const storm: Typhoon = {
+  id: '2601',
+  name: 'Storm 2601',
+  level: 'Typhoon',
+  current: {
+    observedAt: '2026-07-10T08:00:00Z',
+    longitude: 122.3,
+    latitude: 24.7,
+    pressureHpa: 960,
+    windMps: 35,
+    forecast: false,
+  },
+  history: [],
+  forecast: [],
+  movementDirection: 'Northwest',
+};
 
 function getJson(port: number): Promise<{ statusCode: number; body: unknown }> {
   return new Promise((resolve, reject) => {
@@ -27,22 +45,10 @@ function getJson(port: number): Promise<{ statusCode: number; body: unknown }> {
   });
 }
 
-test('starts the application on the requested port', async () => {
-  const server = startServer(createApp(), 0);
-
-  await once(server, 'listening');
-
-  expect((server.address() as AddressInfo).port).toBeGreaterThan(0);
-
-  await new Promise<void>((resolve, reject) => {
-    server.close((error) => (error ? reject(error) : resolve()));
-  });
-});
-
-test('wires a supplied service to the current typhoon endpoint', async () => {
-  const service = new TyphoonService(async () => []);
+test('serves the current typhoon snapshot as JSON', async () => {
+  const service = new TyphoonService(async () => [storm]);
   await service.refresh();
-  const server = startServer(createApp(service), 0);
+  const server = createApp(service).listen(0);
 
   try {
     await once(server, 'listening');
@@ -50,7 +56,12 @@ test('wires a supplied service to the current typhoon endpoint', async () => {
     const response = await getJson(address.port);
 
     expect(response.statusCode).toBe(200);
-    expect(response.body).toMatchObject({ status: 'empty', selected: null, storms: [] });
+    expect(response.body).toMatchObject({
+      status: 'live',
+      selected: { id: '2601' },
+      storms: [{ id: '2601' }],
+      source: 'Zhejiang Typhoon Portal',
+    });
   } finally {
     await new Promise<void>((resolve, reject) => {
       server.close((error) => (error ? reject(error) : resolve()));
