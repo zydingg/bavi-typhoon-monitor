@@ -45,6 +45,10 @@ export function App({ initialSnapshot }: AppProps) {
     return <main className="state">当前暂无活动台风</main>;
   }
 
+  if (snapshot?.status === 'error') {
+    return <main className="state state-error">实时数据暂不可用</main>;
+  }
+
   if (!snapshot?.selected) {
     return <main className="state">正在获取台风监测数据…</main>;
   }

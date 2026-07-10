@@ -57,6 +57,7 @@ function ForecastCard({ label, point }: { label: string; point?: TrackPoint }) {
         <>
           <strong>{formatNumber(point.windMps, 'm/s')}</strong>
           <span>{point.latitude.toFixed(1)}°N / {point.longitude.toFixed(1)}°E</span>
+          <span>预报时刻：{point.observedAt}</span>
         </>
       ) : <span>暂无预测数据</span>}
     </section>
@@ -107,9 +108,14 @@ function TrajectoryChart({ current, history, forecast }: {
     });
 
     const resize = () => chart.resize();
-    window.addEventListener('resize', resize);
+    const resizeObserver = typeof ResizeObserver === 'undefined'
+      ? undefined
+      : new ResizeObserver(resize);
+    resizeObserver?.observe(element);
+    if (!resizeObserver) window.addEventListener('resize', resize);
     return () => {
-      window.removeEventListener('resize', resize);
+      resizeObserver?.disconnect();
+      if (!resizeObserver) window.removeEventListener('resize', resize);
       chart.dispose();
     };
   }, [current, forecast, history]);
