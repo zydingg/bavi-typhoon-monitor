@@ -42,3 +42,25 @@ exit 0; Vite production build completed
 
 The Vite build emits its existing warning that the minified JavaScript chunk is
 larger than 500 kB; this does not fail the build.
+
+## Re-review follow-up
+
+- Moved portal-loader timeout cleanup into an outer `finally`, so the
+  `AbortController` remains active through both response acquisition and
+  `response.text()` parsing. Invalid or non-positive timeout configuration now
+  falls back to the 10-second default.
+- Added a startup regression test with a response body that never resolves
+  unless its `AbortSignal` fires. With the configured 10 ms timeout, startup
+  now listens and serves the expected `error` snapshot instead of hanging.
+- Updated the Chinese operational guidance that previously described refresh as
+  startup-only, and retired the unused Cartesian helper from executable code.
+
+### Re-review verification
+
+```text
+npm.cmd test -- server/index.test.ts server/typhoon-service.test.ts web/src/App.test.tsx
+3 test files passed, 17 tests passed
+
+npm.cmd run typecheck
+exit 0
+```

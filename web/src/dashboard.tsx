@@ -66,6 +66,7 @@ function ForecastCard({ label, point }: { label: string; point?: TrackPoint }) {
   );
 }
 
+/* Retired Cartesian implementation retained only as source history.
 function LegacyTrajectoryChart({ current, history, forecast }: {
   current: TrackPoint;
   history: TrackPoint[];
@@ -157,6 +158,7 @@ function LegacyTrajectoryChart({ current, history, forecast }: {
 
   return <div ref={chartElement} className="trajectory-chart" role="img" aria-label="台风轨迹海域图，横轴为经度，纵轴为纬度" />;
 }
+*/
 
 function TrajectoryChart({ current, history, forecast }: {
   current: TrackPoint;

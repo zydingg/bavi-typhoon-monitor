@@ -3,7 +3,7 @@ import { request } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { expect, test, vi } from 'vitest';
 import { createApp, startServer, startTyphoonServer } from './index';
-import { TyphoonService } from './typhoon-service.js';
+import { createPortalLoader, type PortalFetcher, TyphoonService } from './typhoon-service.js';
 
 const point = {
   observedAt: '2026-07-10T08:00:00Z',
@@ -135,6 +135,28 @@ test('starts and exposes an error snapshot after the initial loader fails', asyn
   const service = new TyphoonService(async () => {
     throw new Error('upstream timed out');
   });
+  const server = await startTyphoonServer(0, service);
+
+  try {
+    const address = server.address() as AddressInfo;
+    const response = await getJson(address.port);
+    expect(response.body).toMatchObject({ status: 'error', selected: null, storms: [] });
+  } finally {
+    await new Promise<void>((resolve, reject) => {
+      server.close((error) => (error ? reject(error) : resolve()));
+    });
+  }
+});
+
+test('starts with an error snapshot when the upstream response body times out', async () => {
+  const fetcher: PortalFetcher = vi.fn(async (_url, options) => ({
+    ok: true,
+    status: 200,
+    text: () => new Promise<never>((_, reject) => {
+      options?.signal?.addEventListener('abort', () => reject(options.signal?.reason));
+    }),
+  }));
+  const service = new TyphoonService(createPortalLoader('https://portal.example.test/current', fetcher, 10));
   const server = await startTyphoonServer(0, service);
 
   try {

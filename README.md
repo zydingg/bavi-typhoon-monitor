@@ -27,7 +27,7 @@
 | `PORT` | `8787` | Express API 的监听端口。 |
 | `TYPHOON_API_URL` | `https://typhoon.slt.zj.gov.cn/Api/TyphoonList/Default` | 浙江省水利厅台风门户的上游数据地址。 |
 
-服务启动时会请求 `TYPHOON_API_URL`，解析 JSON/JSONP 响应并校验台风轨迹坐标。浏览器每 60 秒轮询本地 `/api/typhoon/current`；当前服务端不会按该间隔重新请求上游，重新启动服务才会发起新的上游拉取。
+服务启动时会请求 `TYPHOON_API_URL`，解析 JSON/JSONP 响应并校验台风轨迹坐标。浏览器每 60 秒轮询本地 `/api/typhoon/current`；服务端按 `TYPHOON_REFRESH_SECONDS`（默认 600 秒）独立刷新上游，不需要重新启动服务。
 
 看板只消费本地 `/api/typhoon/current`，不会从浏览器直接调用上游。项目当前没有可通过环境变量启用的本地 fixture 数据源；`source` 固定为 `Zhejiang Typhoon Portal`，不应将任何页面展示或接口返回视为已验证的实时上游数据，除非该次启动的上游请求确实成功。
 
@@ -72,7 +72,7 @@ map-provider key: the trajectory map bundles its own local GeoJSON base map.
 - `stale`：此前有成功数据，后续刷新失败；接口保留并返回最近一次成功数据及其时间。
 - `error`：一次刷新失败且没有缓存的台风记录可用；`selected` 为 `null`，`storms` 为空。它既可能发生在首次加载失败时，也可能发生在此前成功但结果为空、随后刷新失败时。
 
-`stale` 是服务层在刷新失败时保留上次成功快照的回退机制。常规启动路径仅在启动时刷新一次，因此实际运行中要进入 `stale` 状态需由服务代码再次调用刷新；如果启动时上游不可用，接口会返回 `error`，而不是编造或替换为 fixture 数据。
+`stale` 是服务层在周期刷新失败时保留上次成功快照的回退机制；如果启动时上游不可用，接口会返回 `error`，而不是编造或替换为 fixture 数据。
 
 ## 验证
 
@@ -84,4 +84,4 @@ npm run build
 
 手动检查时，可在 `http://localhost:5173` 验证：有可用台风数据时的轨迹与指标；上游成功但为空时的“当前暂无活动台风”；以及响应为 `error` 时的不可用提示。1280 × 720 下，主看板采用四项指标和“轨迹 / 预报”两栏布局；较窄视口会按 CSS 断点收缩为两栏或一栏。
 
-`stale` 缓存回退需要先获得一次成功快照，再让下一次服务刷新失败；当前没有公开的运行时开关可以在浏览器中模拟该状态。
+`stale` 缓存回退需要先获得一次成功快照，再让下一次周期服务刷新失败；当前没有公开的运行时开关可以在浏览器中模拟该状态。

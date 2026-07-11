@@ -29,30 +29,32 @@ export function createPortalLoader(
   timeoutMs = Number(process.env.TYPHOON_FETCH_TIMEOUT_MS ?? DEFAULT_FETCH_TIMEOUT_MS),
 ): TyphoonLoader {
   return async () => {
+    const configuredTimeoutMs = Number.isFinite(timeoutMs) && timeoutMs > 0
+      ? timeoutMs
+      : DEFAULT_FETCH_TIMEOUT_MS;
     const controller = new AbortController();
     const timeout = setTimeout(() => {
-      controller.abort(new Error(`Typhoon portal request timed out after ${timeoutMs}ms`));
-    }, timeoutMs);
+      controller.abort(new Error(`Typhoon portal request timed out after ${configuredTimeoutMs}ms`));
+    }, configuredTimeoutMs);
 
-    let response: PortalResponse;
     try {
-      response = await fetcher(upstreamUrl, { signal: controller.signal });
+      const response = await fetcher(upstreamUrl, { signal: controller.signal });
+
+      if (!response.ok) {
+        throw new Error(`Portal request failed with status ${response.status}`);
+      }
+
+      const payload = parsePortalPayload(await response.text());
+      const records = Array.isArray(payload) ? payload : payload?.data;
+
+      if (!Array.isArray(records)) {
+        throw new TypeError('Portal payload does not contain a typhoon data array');
+      }
+
+      return records.map((record: unknown) => normalizePortalTyphoon(record));
     } finally {
       clearTimeout(timeout);
     }
-
-    if (!response.ok) {
-      throw new Error(`Portal request failed with status ${response.status}`);
-    }
-
-    const payload = parsePortalPayload(await response.text());
-    const records = Array.isArray(payload) ? payload : payload?.data;
-
-    if (!Array.isArray(records)) {
-      throw new TypeError('Portal payload does not contain a typhoon data array');
-    }
-
-    return records.map((record: unknown) => normalizePortalTyphoon(record));
   };
 }
 
