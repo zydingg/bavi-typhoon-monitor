@@ -25,23 +25,25 @@
 | 变量 | 默认值 | 说明 |
 | --- | --- | --- |
 | `PORT` | `8787` | Express API 的监听端口。 |
-| `TYPHOON_API_URL` | `https://typhoon.slt.zj.gov.cn/Api/TyphoonList/Default` | 浙江省水利厅台风门户的上游数据地址。 |
+| `QWEATHER_CREDENTIAL_ID` | — | QWeather Credential ID；仅在服务端 JWT 中使用。 |
+| `QWEATHER_API_KEY` | — | QWeather API Key；仅在服务端 JWT 中使用。 |
 
-服务启动时会请求 `TYPHOON_API_URL`，解析 JSON/JSONP 响应并校验台风轨迹坐标。浏览器每 60 秒轮询本地 `/api/typhoon/current`；服务端按 `TYPHOON_REFRESH_SECONDS`（默认 600 秒）独立刷新上游，不需要重新启动服务。
+服务启动时会通过 QWeather Bearer JWT 查询 NP 海域的当年和上一年列表，并加载活动台风的实况路径与预报。浏览器每 60 秒轮询本地 `/api/typhoon/current`；服务端按 `TYPHOON_REFRESH_SECONDS`（默认 600 秒）独立刷新上游，不需要重新启动服务。
 
-看板只消费本地 `/api/typhoon/current`，不会从浏览器直接调用上游。项目当前没有可通过环境变量启用的本地 fixture 数据源；`source` 固定为 `Zhejiang Typhoon Portal`，不应将任何页面展示或接口返回视为已验证的实时上游数据，除非该次启动的上游请求确实成功。
+看板只消费本地 `/api/typhoon/current`，不会从浏览器直接调用上游。项目当前没有可通过环境变量启用的本地 fixture 数据源；`source` 固定为 `QWeather Tropical Cyclone API`，不应将任何页面展示或接口返回视为已验证的实时上游数据，除非该次启动的上游请求确实成功。
 
-### Weather configuration
+### QWeather configuration
 
-Set `SENIVERSE_API_KEY` in the ignored local `.env` file to enable current
-weather for the selected typhoon's coordinates. The key is read only by the
-Express server, used for the Seniverse upstream request, and is never included
-in the browser bundle or the snapshot response. If the weather request fails,
-the typhoon snapshot remains available and reports weather as unavailable.
+Set `QWEATHER_CREDENTIAL_ID` and `QWEATHER_API_KEY` only in the ignored local
+`.env` file. The Express server creates a short-lived Bearer JWT locally and
+uses it to query QWeather's NP tropical-cyclone list, track, and forecast APIs.
+Credentials, the JWT, and the QWeather host never appear in the browser bundle
+or snapshot response. Snapshot attribution is `QWeather Tropical Cyclone API`;
+an upstream `fxLink`, when provided, is returned solely as an attribution link.
 
 ### Upstream refresh
 
-The server refreshes `TYPHOON_API_URL` once at startup and then every
+The server refreshes QWeather data once at startup and then every
 `TYPHOON_REFRESH_SECONDS` seconds. The default is `600` seconds (10 minutes).
 Refreshes are server-owned, never overlap, and stop when the HTTP server closes.
 Each upstream request is aborted after 10 seconds; after a successful refresh,
@@ -58,10 +60,8 @@ map-provider key: the trajectory map bundles its own local GeoJSON base map.
   "status": "live",
   "selected": { "id": "..." },
   "storms": [{ "id": "..." }],
-  "weather": null,
-  "weatherStatus": "unavailable",
   "updatedAt": "2026-07-11T00:00:00.000Z",
-  "source": "Zhejiang Typhoon Portal"
+  "source": "QWeather Tropical Cyclone API"
 }
 ```
 
@@ -73,7 +73,7 @@ map-provider key: the trajectory map bundles its own local GeoJSON base map.
 | `selected` | 观测时间最新的台风；没有可选台风时为 `null`。 |
 | `storms` | 已成功加载并通过校验的台风数组。 |
 | `updatedAt` | 最近一次成功加载的 ISO 8601 时间；首次加载失败时省略。 |
-| `source` | 当前实现固定为 `Zhejiang Typhoon Portal`。 |
+| `source` | 当前实现固定为 `QWeather Tropical Cyclone API`。 |
 
 状态含义：
 

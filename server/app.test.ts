@@ -60,7 +60,7 @@ test('serves the current typhoon snapshot as JSON', async () => {
       status: 'live',
       selected: { id: '2601' },
       storms: [{ id: '2601' }],
-      source: 'Zhejiang Typhoon Portal',
+      source: 'QWeather Tropical Cyclone API',
     });
   } finally {
     await new Promise<void>((resolve, reject) => {
