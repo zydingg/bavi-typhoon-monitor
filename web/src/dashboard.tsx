@@ -257,16 +257,14 @@ export function Dashboard({ snapshot, requestError }: DashboardProps) {
           <div className="panel-heading"><div><p className="eyebrow">FORECAST</p><h2>路径预报</h2></div></div>
           <ForecastCard label="24小时预报" point={forecast24} />
           <ForecastCard label="48小时预报" point={forecast48} />
-          <section className="weather-card" aria-label="中心附近实况">
-            <p>中心附近实况</p>
-            {snapshot.weatherStatus === 'available' && snapshot.weather ? (
-              <>
-                <strong>{snapshot.weather.temperatureC} °C · <em>{snapshot.weather.text}</em></strong>
-                <span>{snapshot.weather.windDirection}风 {snapshot.weather.windSpeedKph} km/h · {snapshot.weather.pressureMb} mb</span>
-              </>
-            ) : <span>中心附近天气暂不可用</span>}
+          <section className="source-note">
+            <p>数据来源</p>
+            <strong>{snapshot.source}</strong>
+            <span>更新时间：{formatDateTime(snapshot.updatedAt)}</span>
+            {snapshot.fxLink ? (
+              <a href={snapshot.fxLink} target="_blank" rel="noreferrer">查看和风天气详情</a>
+            ) : null}
           </section>
-          <section className="source-note"><p>数据来源</p><strong>{snapshot.source}</strong><span>更新时间：{formatDateTime(snapshot.updatedAt)}</span></section>
         </aside>
       </section>
     </main>

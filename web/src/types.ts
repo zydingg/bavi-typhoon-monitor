@@ -1,18 +1,5 @@
 export type FeedStatus = 'live' | 'empty' | 'stale' | 'error';
 
-export interface WeatherObservation {
-  locationName: string;
-  text: string;
-  code: string;
-  temperatureC: number;
-  windDirection: string;
-  windSpeedKph: number;
-  pressureMb: number;
-  observedAt: string;
-}
-
-export type WeatherStatus = 'available' | 'unavailable' | 'not_applicable';
-
 export interface TrackPoint {
   observedAt: string;
   longitude: number;
@@ -40,7 +27,6 @@ export interface TyphoonSnapshot {
   selected: Typhoon | null;
   storms: Typhoon[];
   updatedAt?: string;
-  source: 'Zhejiang Typhoon Portal';
-  weather: WeatherObservation | null;
-  weatherStatus: WeatherStatus;
+  source: 'QWeather Tropical Cyclone API';
+  fxLink?: string;
 }

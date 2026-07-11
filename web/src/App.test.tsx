@@ -16,9 +16,7 @@ const emptySnapshot = {
   status: 'empty' as const,
   selected: null,
   storms: [],
-  source: 'Zhejiang Typhoon Portal' as const,
-  weather: null,
-  weatherStatus: 'not_applicable' as const,
+  source: 'QWeather Tropical Cyclone API' as const,
 };
 
 const liveSnapshot = {
@@ -33,9 +31,7 @@ const liveSnapshot = {
     movementDirection: '西北',
   },
   storms: [],
-  source: 'Zhejiang Typhoon Portal' as const,
-  weather: null,
-  weatherStatus: 'not_applicable' as const,
+  source: 'QWeather Tropical Cyclone API' as const,
 };
 
 const mockGetCurrentTyphoon = vi.mocked(getCurrentTyphoon);
@@ -78,7 +74,8 @@ test('shows the actual timestamp for sparse forecast data', () => {
     <Dashboard
       snapshot={{
         status: 'live',
-        source: 'Zhejiang Typhoon Portal',
+        source: 'QWeather Tropical Cyclone API',
+        fxLink: 'https://www.qweather.com/typhoon/2601.html',
         storms: [],
         selected: {
           id: '2601',
@@ -89,43 +86,23 @@ test('shows the actual timestamp for sparse forecast data', () => {
           forecast: [{ observedAt: sparseForecastAt, longitude: 132, latitude: 25, windMps: 30, forecast: true }],
           movementDirection: '西北',
         },
-        weather: null,
-        weatherStatus: 'not_applicable',
       }}
     />,
   );
 
   expect(screen.getAllByText(`预报时刻：${sparseForecastAt}`)).toHaveLength(2);
+  expect(screen.getByText('QWeather Tropical Cyclone API')).toBeTruthy();
+  const link = screen.getByRole('link', { name: '查看和风天气详情' });
+  expect(link.getAttribute('href')).toBe('https://www.qweather.com/typhoon/2601.html');
+  expect(link.getAttribute('target')).toBe('_blank');
+  expect(link.getAttribute('rel')).toBe('noreferrer');
+  expect(screen.queryByLabelText('中心附近实况')).toBeNull();
 });
 
-test('shows center-nearby weather only when it is available', () => {
-  render(
-    <App
-      initialSnapshot={{
-        ...liveSnapshot,
-        weatherStatus: 'available',
-        weather: {
-          locationName: '台风中心附近',
-          text: '多云',
-          temperatureC: 28,
-          windDirection: '东南',
-          windSpeedKph: 25,
-          pressureMb: 990,
-          observedAt: '2026-07-11T08:00:00+08:00',
-          code: '4',
-        },
-      }}
-    />,
-  );
+test('hides the QWeather link when the snapshot has no fxLink', () => {
+  render(<App initialSnapshot={liveSnapshot} />);
 
-  expect(screen.getByText('中心附近实况')).toBeTruthy();
-  expect(screen.getByText('多云')).toBeTruthy();
-});
-
-test('labels unavailable center-nearby weather without changing typhoon status', () => {
-  render(<App initialSnapshot={{ ...liveSnapshot, weatherStatus: 'unavailable', weather: null }} />);
-
-  expect(screen.getByText('中心附近天气暂不可用')).toBeTruthy();
+  expect(screen.queryByRole('link', { name: '查看和风天气详情' })).toBeNull();
 });
 
 test('polls every sixty seconds and clears the interval on unmount', async () => {
