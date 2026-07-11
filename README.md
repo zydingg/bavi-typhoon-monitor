@@ -31,6 +31,14 @@
 
 看板只消费本地 `/api/typhoon/current`，不会从浏览器直接调用上游。项目当前没有可通过环境变量启用的本地 fixture 数据源；`source` 固定为 `Zhejiang Typhoon Portal`，不应将任何页面展示或接口返回视为已验证的实时上游数据，除非该次启动的上游请求确实成功。
 
+### Weather configuration
+
+Set `SENIVERSE_API_KEY` in the ignored local `.env` file to enable current
+weather for the selected typhoon's coordinates. The key is read only by the
+Express server, used for the Seniverse upstream request, and is never included
+in the browser bundle or the snapshot response. If the weather request fails,
+the typhoon snapshot remains available and reports weather as unavailable.
+
 ### Upstream refresh
 
 The server refreshes `TYPHOON_API_URL` once at startup and then every
@@ -50,6 +58,8 @@ map-provider key: the trajectory map bundles its own local GeoJSON base map.
   "status": "live",
   "selected": { "id": "..." },
   "storms": [{ "id": "..." }],
+  "weather": null,
+  "weatherStatus": "unavailable",
   "updatedAt": "2026-07-11T00:00:00.000Z",
   "source": "Zhejiang Typhoon Portal"
 }

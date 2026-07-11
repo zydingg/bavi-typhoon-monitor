@@ -81,17 +81,29 @@ test('refreshes upstream on the server interval and returns a stale snapshot aft
   const loader = vi.fn()
     .mockResolvedValueOnce([storm])
     .mockRejectedValueOnce(new Error('upstream unavailable'));
-  const service = new TyphoonService(loader);
+  const weatherLoader = vi.fn(async () => ({
+    locationName: 'Typhoon center nearby',
+    text: 'Cloudy',
+    code: '4',
+    temperatureC: 28,
+    windDirection: 'Southeast',
+    windSpeedKph: 25,
+    pressureMb: 990,
+    observedAt: '2026-07-11T08:00:00+08:00',
+  }));
+  const service = new TyphoonService(loader, weatherLoader);
   const server = await startTyphoonServer(0, service);
 
   try {
     expect(loader).toHaveBeenCalledTimes(1);
-    expect(service.snapshot()).toMatchObject({ status: 'live', selected: { id: '2601' } });
+    expect(weatherLoader).toHaveBeenCalledWith({ latitude: 24.7, longitude: 122.3 });
+    expect(service.snapshot()).toMatchObject({ status: 'live', selected: { id: '2601' }, weatherStatus: 'available' });
 
     await vi.advanceTimersByTimeAsync(600_000);
 
     expect(loader).toHaveBeenCalledTimes(2);
-    expect(service.snapshot()).toMatchObject({ status: 'stale', selected: { id: '2601' } });
+    expect(weatherLoader).toHaveBeenCalledTimes(1);
+    expect(service.snapshot()).toMatchObject({ status: 'stale', selected: { id: '2601' }, weatherStatus: 'available' });
   } finally {
     await new Promise<void>((resolve, reject) => {
       server.close((error) => (error ? reject(error) : resolve()));

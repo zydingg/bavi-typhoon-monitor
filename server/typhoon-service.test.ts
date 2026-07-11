@@ -52,6 +52,53 @@ test('reports an empty successful response without a selected typhoon', async ()
   expect(service.snapshot().updatedAt).toEqual(expect.any(String));
 });
 
+test('marks weather as not applicable for an empty successful response', async () => {
+  const weatherLoader = vi.fn();
+  const service = new TyphoonService(async () => [], weatherLoader);
+
+  await service.refresh();
+
+  expect(service.snapshot()).toMatchObject({ weather: null, weatherStatus: 'not_applicable' });
+  expect(weatherLoader).not.toHaveBeenCalled();
+});
+
+test('keeps a live typhoon snapshot when Seniverse fails', async () => {
+  const service = new TyphoonService(
+    async () => [typhoon('2601')],
+    async () => { throw new Error('weather unavailable'); },
+  );
+
+  await service.refresh();
+
+  expect(service.snapshot()).toMatchObject({ status: 'live', weather: null, weatherStatus: 'unavailable' });
+});
+
+test('loads weather only for the selected typhoon from the successful refresh', async () => {
+  const weatherLoader = vi.fn(async () => ({
+    locationName: 'Typhoon center nearby',
+    text: 'Cloudy',
+    code: '4',
+    temperatureC: 28,
+    windDirection: 'Southeast',
+    windSpeedKph: 25,
+    pressureMb: 990,
+    observedAt: '2026-07-11T08:00:00+08:00',
+  }));
+  const service = new TyphoonService(
+    async () => [typhoon('older', '2026-07-10T07:00:00Z'), typhoon('newer')],
+    weatherLoader,
+  );
+
+  await service.refresh();
+
+  expect(weatherLoader).toHaveBeenCalledWith({ latitude: 24.7, longitude: 122.3 });
+  expect(service.snapshot()).toMatchObject({
+    status: 'live',
+    weatherStatus: 'available',
+    weather: { temperatureC: 28 },
+  });
+});
+
 test('reports an error when the first refresh fails', async () => {
   const service = new TyphoonService(async () => {
     throw new Error('upstream timeout');

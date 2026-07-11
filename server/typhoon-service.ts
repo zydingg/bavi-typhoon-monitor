@@ -1,4 +1,5 @@
-import type { Typhoon } from './domain.js';
+import type { Typhoon, WeatherObservation, WeatherStatus } from './domain.js';
+import type { SeniverseLoader } from './seniverse-weather.js';
 import { normalizePortalTyphoon, parsePortalPayload } from './typhoon-source.js';
 
 export type FeedStatus = 'live' | 'empty' | 'stale' | 'error';
@@ -7,6 +8,8 @@ export interface TyphoonSnapshot {
   status: FeedStatus;
   selected: Typhoon | null;
   storms: Typhoon[];
+  weather: WeatherObservation | null;
+  weatherStatus: WeatherStatus;
   updatedAt?: string;
   source: 'Zhejiang Typhoon Portal';
 }
@@ -62,8 +65,10 @@ export class TyphoonService {
   private cache: Typhoon[] = [];
   private state: FeedStatus = 'error';
   private updatedAt?: string;
+  private weather: WeatherObservation | null = null;
+  private weatherStatus: WeatherStatus = 'not_applicable';
 
-  constructor(private loader: TyphoonLoader) {}
+  constructor(private loader: TyphoonLoader, private weatherLoader?: SeniverseLoader) {}
 
   setLoaderForTest(loader: TyphoonLoader): void {
     this.loader = loader;
@@ -80,6 +85,26 @@ export class TyphoonService {
       this.cache = [...nextCache];
       this.state = this.cache.length ? 'live' : 'empty';
       this.updatedAt = new Date().toISOString();
+
+      const selected = selectTyphoon(this.cache);
+      if (!selected) {
+        this.weather = null;
+        this.weatherStatus = 'not_applicable';
+      } else if (!this.weatherLoader) {
+        this.weather = null;
+        this.weatherStatus = 'unavailable';
+      } else {
+        try {
+          this.weather = await this.weatherLoader({
+            latitude: selected.current.latitude,
+            longitude: selected.current.longitude,
+          });
+          this.weatherStatus = 'available';
+        } catch {
+          this.weather = null;
+          this.weatherStatus = 'unavailable';
+        }
+      }
     } catch {
       this.state = this.cache.length ? 'stale' : 'error';
     }
@@ -87,16 +112,22 @@ export class TyphoonService {
 
   snapshot(): TyphoonSnapshot {
     const storms = [...this.cache];
-    const selected = storms
-      .slice()
-      .sort((left, right) => right.current.observedAt.localeCompare(left.current.observedAt))[0] ?? null;
+    const selected = selectTyphoon(storms);
 
     return {
       status: this.state,
       selected,
       storms,
+      weather: this.weather,
+      weatherStatus: this.weatherStatus,
       updatedAt: this.updatedAt,
       source: 'Zhejiang Typhoon Portal',
     };
   }
+}
+
+function selectTyphoon(storms: Typhoon[]): Typhoon | null {
+  return storms
+    .slice()
+    .sort((left, right) => right.current.observedAt.localeCompare(left.current.observedAt))[0] ?? null;
 }

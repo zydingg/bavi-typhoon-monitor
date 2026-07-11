@@ -11,6 +11,19 @@ export const TrackPointSchema = z.object({
 
 export type TrackPoint = z.infer<typeof TrackPointSchema>;
 
+export interface WeatherObservation {
+  locationName: string;
+  text: string;
+  code: string;
+  temperatureC: number;
+  windDirection: string;
+  windSpeedKph: number;
+  pressureMb: number;
+  observedAt: string;
+}
+
+export type WeatherStatus = 'available' | 'unavailable' | 'not_applicable';
+
 export const TyphoonSchema = z.object({
   id: z.string().min(1),
   name: z.string().min(1),

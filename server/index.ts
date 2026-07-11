@@ -4,6 +4,7 @@ import { loadEnvFile } from 'node:process';
 import { fileURLToPath } from 'node:url';
 import type { Express } from 'express';
 import { createApp as createTyphoonApp } from './app.js';
+import { createSeniverseLoader } from './seniverse-weather.js';
 import { createPortalLoader, TyphoonService } from './typhoon-service.js';
 
 if (existsSync('.env')) {
@@ -13,7 +14,7 @@ if (existsSync('.env')) {
 const defaultPort = 8787;
 const defaultRefreshSeconds = 600;
 
-export function createApp(service = new TyphoonService(createPortalLoader())): Express {
+export function createApp(service = new TyphoonService(createPortalLoader(), createSeniverseLoader())): Express {
   return createTyphoonApp(service);
 }
 
@@ -30,7 +31,7 @@ export function getRefreshSeconds(value = process.env.TYPHOON_REFRESH_SECONDS): 
 
 export async function startTyphoonServer(
   port = Number(process.env.PORT ?? defaultPort),
-  service = new TyphoonService(createPortalLoader()),
+  service = new TyphoonService(createPortalLoader(), createSeniverseLoader()),
 ): Promise<Server> {
   let refreshInFlight = false;
   const refresh = async () => {
