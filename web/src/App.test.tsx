@@ -17,6 +17,25 @@ const emptySnapshot = {
   selected: null,
   storms: [],
   source: 'Zhejiang Typhoon Portal' as const,
+  weather: null,
+  weatherStatus: 'not_applicable' as const,
+};
+
+const liveSnapshot = {
+  status: 'live' as const,
+  selected: {
+    id: '2601',
+    name: '海燕',
+    level: '强台风',
+    current: { observedAt: '2026-07-11T08:00:00+08:00', longitude: 128, latitude: 22, forecast: false },
+    history: [],
+    forecast: [],
+    movementDirection: '西北',
+  },
+  storms: [],
+  source: 'Zhejiang Typhoon Portal' as const,
+  weather: null,
+  weatherStatus: 'not_applicable' as const,
 };
 
 const mockGetCurrentTyphoon = vi.mocked(getCurrentTyphoon);
@@ -70,11 +89,43 @@ test('shows the actual timestamp for sparse forecast data', () => {
           forecast: [{ observedAt: sparseForecastAt, longitude: 132, latitude: 25, windMps: 30, forecast: true }],
           movementDirection: '西北',
         },
+        weather: null,
+        weatherStatus: 'not_applicable',
       }}
     />,
   );
 
   expect(screen.getAllByText(`预报时刻：${sparseForecastAt}`)).toHaveLength(2);
+});
+
+test('shows center-nearby weather only when it is available', () => {
+  render(
+    <App
+      initialSnapshot={{
+        ...liveSnapshot,
+        weatherStatus: 'available',
+        weather: {
+          locationName: '台风中心附近',
+          text: '多云',
+          temperatureC: 28,
+          windDirection: '东南',
+          windSpeedKph: 25,
+          pressureMb: 990,
+          observedAt: '2026-07-11T08:00:00+08:00',
+          code: '4',
+        },
+      }}
+    />,
+  );
+
+  expect(screen.getByText('中心附近实况')).toBeTruthy();
+  expect(screen.getByText('多云')).toBeTruthy();
+});
+
+test('labels unavailable center-nearby weather without changing typhoon status', () => {
+  render(<App initialSnapshot={{ ...liveSnapshot, weatherStatus: 'unavailable', weather: null }} />);
+
+  expect(screen.getByText('中心附近天气暂不可用')).toBeTruthy();
 });
 
 test('polls every sixty seconds and clears the interval on unmount', async () => {
