@@ -53,6 +53,9 @@ export function createQWeatherLoader({
   if (!configuredHost) {
     return async () => { throw new Error('QWeather API host is not configured'); };
   }
+  if (!isHttpsUrl(configuredHost)) {
+    return async () => { throw new Error('QWeather API host must be a valid HTTPS URL'); };
+  }
 
   return async () => {
     const requestedAt = typeof now === 'function' ? now() : now;
@@ -74,19 +77,40 @@ async function getJson<T extends { code: string }>(fetcher: Fetcher, host: strin
   const configuredTimeoutMs = Number.isFinite(timeoutMs) && timeoutMs > 0 ? timeoutMs : DEFAULT_TIMEOUT_MS;
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(new Error(`QWeather request timed out after ${configuredTimeoutMs}ms`)), configuredTimeoutMs);
-  let response: Response;
   try {
-    response = await fetcher(`${host.replace(/\/$/, '')}${path}`, {
+    const response = await abortable(fetcher(`${host.replace(/\/$/, '')}${path}`, {
       headers: { 'X-QW-Api-Key': apiKey },
       signal: controller.signal,
-    });
+    }), controller.signal);
+    if (!response.ok) throw new Error(`QWeather request failed with status ${response.status}`);
+    const payload = await abortable(response.json() as Promise<T>, controller.signal);
+    if (payload.code !== '200') throw new Error(`QWeather request failed with code ${payload.code}`);
+    return payload;
   } finally {
     clearTimeout(timeout);
   }
-  if (!response.ok) throw new Error(`QWeather request failed with status ${response.status}`);
-  const payload = await response.json() as T;
-  if (payload.code !== '200') throw new Error(`QWeather request failed with code ${payload.code}`);
-  return payload;
+}
+
+function abortable<T>(promise: Promise<T>, signal: AbortSignal): Promise<T> {
+  if (signal.aborted) return Promise.reject(signal.reason);
+
+  return new Promise((resolve, reject) => {
+    const onAbort = () => {
+      signal.removeEventListener('abort', onAbort);
+      reject(signal.reason);
+    };
+    signal.addEventListener('abort', onAbort, { once: true });
+    promise.then(
+      (value) => {
+        signal.removeEventListener('abort', onAbort);
+        resolve(value);
+      },
+      (error: unknown) => {
+        signal.removeEventListener('abort', onAbort);
+        reject(error);
+      },
+    );
+  });
 }
 
 function mapStorm(storm: StormSummary, payload: TrackPayload, forecast: QWeatherPoint[]): Typhoon {
@@ -94,6 +118,7 @@ function mapStorm(storm: StormSummary, payload: TrackPayload, forecast: QWeather
   const current = payload.now ? mapPoint(payload.now, false) : history.at(-1);
   if (!current) throw new TypeError(`QWeather track has no current point for ${storm.id}`);
   const predicted = forecast.map((point) => mapPoint(point, true));
+  const fxLink = isHttpsUrl(payload.fxLink) ? payload.fxLink : undefined;
 
   return TyphoonSchema.parse({
     id: storm.id,
@@ -104,8 +129,17 @@ function mapStorm(storm: StormSummary, payload: TrackPayload, forecast: QWeather
     forecast: predicted,
     movementDirection: payload.now?.moveDir ?? 'Unknown',
     movementSpeedKph: numberOrUndefined(payload.now?.moveSpeed),
-    fxLink: payload.fxLink,
+    ...(fxLink ? { fxLink } : {}),
   });
+}
+
+function isHttpsUrl(value: string | undefined): value is string {
+  if (!value) return false;
+  try {
+    return new URL(value).protocol === 'https:';
+  } catch {
+    return false;
+  }
 }
 
 function mapPoint(point: QWeatherPoint, forecast: boolean): TrackPoint {
