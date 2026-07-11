@@ -6,12 +6,12 @@
 
 ## 服务端数据流
 
-1. 用服务端 JWT Bearer 鉴权请求 `/v7/tropical/storm-list?basin=NP&year=<当前年>` 和上一年列表。
+1. 用服务端 `X-QW-Api-Key` 请求头和显式配置的 API Host 请求 `/v7/tropical/storm-list?basin=NP&year=<当前年>` 和上一年列表。
 2. 选取 `isActive === "1"` 的西北太平洋台风。无结果则返回 `empty`。
 3. 对每个活跃台风请求台风实况和路径；对优先台风请求 `/v7/tropical/storm-forecast?stormid=<id>`。
 4. 标准化实时位置、强度、气压、风速、移动信息、历史路径与预测路径为现有 `Typhoon` 模型。
 
-凭据 ID 和 API Key 只保存在 `.env` 的 `QWEATHER_CREDENTIAL_ID` 与 `QWEATHER_API_KEY`；JWT、Authorization 请求头和 API Host 不进入浏览器或 API 响应。
+API Key 和部署分配的 API Host 只保存在 `.env` 的 `QWEATHER_API_KEY` 与 `QWEATHER_API_HOST`；服务不使用 JWT 或 Authorization Bearer 请求头，且不会回退到公共 Host。密钥和 API Host 不进入浏览器或 API 响应。
 
 ## 快照与归属
 
@@ -25,4 +25,4 @@
 
 ## 测试与验收
 
-测试覆盖 JWT 鉴权请求、NP 列表中活跃台风筛选、路径/预报映射、空列表、路径失败后的缓存降级，以及前端来源展示。所有凭据扫描不得在客户端源码、构建产物、日志或 Git 变更中发现。
+测试覆盖 API-key 请求头、显式 Host、NP 列表中活跃台风筛选、路径/预报映射、空列表、路径失败后的缓存降级，以及前端来源展示。所有凭据扫描不得在客户端源码、构建产物、日志或 Git 变更中发现。

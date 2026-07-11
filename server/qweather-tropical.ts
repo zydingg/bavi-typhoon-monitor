@@ -37,31 +37,34 @@ interface TrackPayload {
   track?: QWeatherPoint[];
 }
 
-const DEFAULT_HOST = 'https://devapi.qweather.com';
 const DEFAULT_TIMEOUT_MS = 10_000;
 
 export function createQWeatherLoader({
   apiKey = process.env.QWEATHER_API_KEY,
   fetcher = fetch,
-  host = process.env.QWEATHER_API_HOST ?? DEFAULT_HOST,
+  host = process.env.QWEATHER_API_HOST,
   now = () => new Date(),
   timeoutMs = DEFAULT_TIMEOUT_MS,
 }: Options = {}): TyphoonLoader {
   if (!apiKey) {
     return async () => { throw new Error('QWeather API key is not configured'); };
   }
+  const configuredHost = host?.trim();
+  if (!configuredHost) {
+    return async () => { throw new Error('QWeather API host is not configured'); };
+  }
 
   return async () => {
     const requestedAt = typeof now === 'function' ? now() : now;
     const years = [requestedAt.getUTCFullYear(), requestedAt.getUTCFullYear() - 1];
     const lists = await Promise.all(years.map((year) => getJson<{ code: string; storm?: StormSummary[] }>(
-      fetcher, host, `/v7/tropical/storm-list?basin=NP&year=${year}`, apiKey, timeoutMs,
+      fetcher, configuredHost, `/v7/tropical/storm-list?basin=NP&year=${year}`, apiKey, timeoutMs,
     )));
     const active = lists.flatMap((list) => list.storm ?? []).filter((storm) => storm.isActive === '1');
 
     return Promise.all(active.map(async (storm) => {
-      const track = await getJson<TrackPayload>(fetcher, host, `/v7/tropical/storm-track?stormid=${encodeURIComponent(storm.id)}`, apiKey, timeoutMs);
-      const forecast = await getJson<{ code: string; forecast?: QWeatherPoint[] }>(fetcher, host, `/v7/tropical/storm-forecast?stormid=${encodeURIComponent(storm.id)}`, apiKey, timeoutMs);
+      const track = await getJson<TrackPayload>(fetcher, configuredHost, `/v7/tropical/storm-track?stormid=${encodeURIComponent(storm.id)}`, apiKey, timeoutMs);
+      const forecast = await getJson<{ code: string; forecast?: QWeatherPoint[] }>(fetcher, configuredHost, `/v7/tropical/storm-forecast?stormid=${encodeURIComponent(storm.id)}`, apiKey, timeoutMs);
       return mapStorm(storm, track, forecast.forecast ?? []);
     }));
   };

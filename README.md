@@ -26,17 +26,20 @@
 | --- | --- | --- |
 | `PORT` | `8787` | Express API 的监听端口。 |
 | `QWEATHER_API_KEY` | — | QWeather API Key；仅在服务端 `X-QW-Api-Key` 请求头中使用。 |
+| `QWEATHER_API_HOST` | — | 部署分配的 QWeather API Host；生产环境必须显式配置。 |
 
-服务启动时会通过 `X-QW-Api-Key` 请求头查询 QWeather NP 海域的当年和上一年列表，并加载活动台风的实况路径与预报。浏览器每 60 秒轮询本地 `/api/typhoon/current`；服务端按 `TYPHOON_REFRESH_SECONDS`（默认 600 秒）独立刷新上游，不需要重新启动服务。
+服务启动时会通过已配置的 `QWEATHER_API_HOST` 和 `X-QW-Api-Key` 请求头查询 QWeather NP 海域的当年和上一年列表，并加载活动台风的实况路径与预报。生产环境必须显式配置该 Host，服务不会回退到公共默认地址。浏览器每 60 秒轮询本地 `/api/typhoon/current`；服务端按 `TYPHOON_REFRESH_SECONDS`（默认 600 秒）独立刷新上游，不需要重新启动服务。
 
 看板只消费本地 `/api/typhoon/current`，不会从浏览器直接调用上游。项目当前没有可通过环境变量启用的本地 fixture 数据源；`source` 固定为 `QWeather Tropical Cyclone API`，不应将任何页面展示或接口返回视为已验证的实时上游数据，除非该次启动的上游请求确实成功。
 
 ### QWeather configuration
 
-Set `QWEATHER_API_KEY` only in the ignored local `.env` file. The Express
-server sends it only as the QWeather `X-QW-Api-Key` request header when querying
-the NP tropical-cyclone list, track, and forecast APIs. The key and QWeather
-host never appear in the browser bundle or snapshot response. Snapshot attribution is `QWeather Tropical Cyclone API`;
+Set `QWEATHER_API_KEY` and the deployment-assigned `QWEATHER_API_HOST` only in
+the ignored local `.env` file. Both are required: the Express server does not
+fall back to a public default host. It sends the key only as the QWeather
+`X-QW-Api-Key` request header when querying the NP tropical-cyclone list, track,
+and forecast APIs. The key and QWeather host never appear in the browser bundle
+or snapshot response. Snapshot attribution is `QWeather Tropical Cyclone API`;
 an upstream `fxLink`, when provided, is returned solely as an attribution link.
 
 ### Upstream refresh
