@@ -22,7 +22,9 @@ export const TyphoonSchema = z.object({
   movementSpeedKph: z.number().nonnegative().optional(),
   radiusKm: z.number().positive().optional(),
   warning: z.string().optional(),
-  fxLink: z.string().url().optional(),
+  fxLink: z.string().url().refine((value) => new URL(value).protocol === 'https:', {
+    message: 'fxLink must use HTTPS',
+  }).optional(),
 });
 
 export type Typhoon = z.infer<typeof TyphoonSchema>;
