@@ -4,11 +4,11 @@ import type { TyphoonLoader } from './typhoon-service.js';
 type Fetcher = typeof fetch;
 
 interface Options {
-  credentialId?: string;
   apiKey?: string;
   fetcher?: Fetcher;
   host?: string;
-  now?: Date;
+  now?: Date | (() => Date);
+  timeoutMs?: number;
 }
 
 interface StormSummary {
@@ -37,39 +37,49 @@ interface TrackPayload {
   track?: QWeatherPoint[];
 }
 
-const encoder = new TextEncoder();
 const DEFAULT_HOST = 'https://devapi.qweather.com';
-const TOKEN_TTL_SECONDS = 30 * 60;
+const DEFAULT_TIMEOUT_MS = 10_000;
 
 export function createQWeatherLoader({
-  credentialId = process.env.QWEATHER_CREDENTIAL_ID,
   apiKey = process.env.QWEATHER_API_KEY,
   fetcher = fetch,
   host = process.env.QWEATHER_API_HOST ?? DEFAULT_HOST,
-  now = new Date(),
+  now = () => new Date(),
+  timeoutMs = DEFAULT_TIMEOUT_MS,
 }: Options = {}): TyphoonLoader {
-  if (!credentialId || !apiKey) {
-    return async () => { throw new Error('QWeather credentials are not configured'); };
+  if (!apiKey) {
+    return async () => { throw new Error('QWeather API key is not configured'); };
   }
 
   return async () => {
-    const token = await createJwt(credentialId, apiKey, now);
-    const years = [now.getUTCFullYear(), now.getUTCFullYear() - 1];
+    const requestedAt = typeof now === 'function' ? now() : now;
+    const years = [requestedAt.getUTCFullYear(), requestedAt.getUTCFullYear() - 1];
     const lists = await Promise.all(years.map((year) => getJson<{ code: string; storm?: StormSummary[] }>(
-      fetcher, host, `/v7/tropical/storm-list?basin=NP&year=${year}`, token,
+      fetcher, host, `/v7/tropical/storm-list?basin=NP&year=${year}`, apiKey, timeoutMs,
     )));
     const active = lists.flatMap((list) => list.storm ?? []).filter((storm) => storm.isActive === '1');
 
     return Promise.all(active.map(async (storm) => {
-      const track = await getJson<TrackPayload>(fetcher, host, `/v7/tropical/storm-track?stormid=${encodeURIComponent(storm.id)}`, token);
-      const forecast = await getJson<{ code: string; forecast?: QWeatherPoint[] }>(fetcher, host, `/v7/tropical/storm-forecast?stormid=${encodeURIComponent(storm.id)}`, token);
+      const track = await getJson<TrackPayload>(fetcher, host, `/v7/tropical/storm-track?stormid=${encodeURIComponent(storm.id)}`, apiKey, timeoutMs);
+      const forecast = await getJson<{ code: string; forecast?: QWeatherPoint[] }>(fetcher, host, `/v7/tropical/storm-forecast?stormid=${encodeURIComponent(storm.id)}`, apiKey, timeoutMs);
       return mapStorm(storm, track, forecast.forecast ?? []);
     }));
   };
 }
 
-async function getJson<T extends { code: string }>(fetcher: Fetcher, host: string, path: string, token: string): Promise<T> {
-  const response = await fetcher(`${host.replace(/\/$/, '')}${path}`, { headers: { Authorization: `Bearer ${token}` } });
+async function getJson<T extends { code: string }>(fetcher: Fetcher, host: string, path: string, apiKey: string, timeoutMs: number): Promise<T> {
+  const configuredTimeoutMs = Number.isFinite(timeoutMs) && timeoutMs > 0 ? timeoutMs : DEFAULT_TIMEOUT_MS;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(new Error(`QWeather request timed out after ${configuredTimeoutMs}ms`)), configuredTimeoutMs);
+  let response: Response;
+  try {
+    response = await fetcher(`${host.replace(/\/$/, '')}${path}`, {
+      headers: { 'X-QW-Api-Key': apiKey },
+      signal: controller.signal,
+    });
+  } finally {
+    clearTimeout(timeout);
+  }
   if (!response.ok) throw new Error(`QWeather request failed with status ${response.status}`);
   const payload = await response.json() as T;
   if (payload.code !== '200') throw new Error(`QWeather request failed with code ${payload.code}`);
@@ -109,19 +119,4 @@ function mapPoint(point: QWeatherPoint, forecast: boolean): TrackPoint {
 function numberOrUndefined(value: string | undefined): number | undefined {
   const number = Number(value);
   return Number.isFinite(number) && number > 0 ? number : undefined;
-}
-
-async function createJwt(credentialId: string, apiKey: string, now: Date): Promise<string> {
-  const issuedAt = Math.floor(now.getTime() / 1_000);
-  const header = base64Url(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));
-  const claims = base64Url(JSON.stringify({ sub: credentialId, iat: issuedAt, exp: issuedAt + TOKEN_TTL_SECONDS }));
-  const signingInput = `${header}.${claims}`;
-  const key = await crypto.subtle.importKey('raw', encoder.encode(apiKey), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
-  const signature = await crypto.subtle.sign('HMAC', key, encoder.encode(signingInput));
-  return `${signingInput}.${base64Url(new Uint8Array(signature))}`;
-}
-
-function base64Url(value: string | Uint8Array): string {
-  const bytes = typeof value === 'string' ? encoder.encode(value) : value;
-  return Buffer.from(bytes).toString('base64url');
 }
