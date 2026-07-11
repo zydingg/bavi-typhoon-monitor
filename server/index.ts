@@ -1,8 +1,14 @@
+import { existsSync } from 'node:fs';
 import type { Server } from 'node:http';
+import { loadEnvFile } from 'node:process';
 import { fileURLToPath } from 'node:url';
 import type { Express } from 'express';
 import { createApp as createTyphoonApp } from './app.js';
 import { createPortalLoader, TyphoonService } from './typhoon-service.js';
+
+if (existsSync('.env')) {
+  loadEnvFile('.env');
+}
 
 const defaultPort = 8787;
 
