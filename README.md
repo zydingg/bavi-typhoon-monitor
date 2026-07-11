@@ -31,6 +31,16 @@
 
 看板只消费本地 `/api/typhoon/current`，不会从浏览器直接调用上游。项目当前没有可通过环境变量启用的本地 fixture 数据源；`source` 固定为 `Zhejiang Typhoon Portal`，不应将任何页面展示或接口返回视为已验证的实时上游数据，除非该次启动的上游请求确实成功。
 
+### Upstream refresh
+
+The server refreshes `TYPHOON_API_URL` once at startup and then every
+`TYPHOON_REFRESH_SECONDS` seconds. The default is `600` seconds (10 minutes).
+Refreshes are server-owned, never overlap, and stop when the HTTP server closes.
+Each upstream request is aborted after 10 seconds; after a successful refresh,
+a later failed refresh returns the preserved snapshot with `status: "stale"`.
+The browser continues to poll only the local API and does not need an upstream
+map-provider key: the trajectory map bundles its own local GeoJSON base map.
+
 ## API
 
 `GET /api/typhoon/current` 始终返回 HTTP `200` 和一个快照：

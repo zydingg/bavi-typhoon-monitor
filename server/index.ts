@@ -11,6 +11,7 @@ if (existsSync('.env')) {
 }
 
 const defaultPort = 8787;
+const defaultRefreshSeconds = 600;
 
 export function createApp(service = new TyphoonService(createPortalLoader())): Express {
   return createTyphoonApp(service);
@@ -22,10 +23,33 @@ export function startServer(app: Express = createApp(), port = Number(process.en
   });
 }
 
-export async function startTyphoonServer(port = Number(process.env.PORT ?? defaultPort)): Promise<Server> {
-  const service = new TyphoonService(createPortalLoader());
-  await service.refresh();
-  return startServer(createApp(service), port);
+export function getRefreshSeconds(value = process.env.TYPHOON_REFRESH_SECONDS): number {
+  const seconds = Number(value ?? defaultRefreshSeconds);
+  return Number.isFinite(seconds) && seconds > 0 ? seconds : defaultRefreshSeconds;
+}
+
+export async function startTyphoonServer(
+  port = Number(process.env.PORT ?? defaultPort),
+  service = new TyphoonService(createPortalLoader()),
+): Promise<Server> {
+  let refreshInFlight = false;
+  const refresh = async () => {
+    if (refreshInFlight) return;
+
+    refreshInFlight = true;
+    try {
+      await service.refresh();
+    } finally {
+      refreshInFlight = false;
+    }
+  };
+
+  await refresh();
+  const server = startServer(createApp(service), port);
+  const refreshTimer = setInterval(() => void refresh(), getRefreshSeconds() * 1_000);
+  server.once('close', () => clearInterval(refreshTimer));
+
+  return server;
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {

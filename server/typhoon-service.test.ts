@@ -90,7 +90,10 @@ test('loads and normalizes portal data through an injected fetcher', async () =>
   await expect(loader()).resolves.toMatchObject([
     { id: '2601', current: { longitude: 122.3, latitude: 24.7 } },
   ]);
-  expect(fetcher).toHaveBeenCalledWith('https://portal.example.test/current');
+  expect(fetcher).toHaveBeenCalledWith(
+    'https://portal.example.test/current',
+    expect.objectContaining({ signal: expect.any(AbortSignal) }),
+  );
 });
 
 test('rejects non-successful portal responses', async () => {
@@ -101,4 +104,14 @@ test('rejects non-successful portal responses', async () => {
   }));
 
   await expect(loader()).rejects.toThrow('Portal request failed with status 503');
+});
+
+test('aborts an upstream fetch that exceeds the configured timeout', async () => {
+  const fetcher: PortalFetcher = vi.fn((_url, options) => new Promise<never>((_, reject) => {
+    options?.signal?.addEventListener('abort', () => reject(options.signal?.reason));
+  }));
+  const loader = createPortalLoader('https://portal.example.test/current', fetcher, 10);
+
+  await expect(loader()).rejects.toThrow('Typhoon portal request timed out after 10ms');
+  expect(fetcher).toHaveBeenCalledWith('https://portal.example.test/current', expect.objectContaining({ signal: expect.any(AbortSignal) }));
 });

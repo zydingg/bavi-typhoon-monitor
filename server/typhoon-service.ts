@@ -17,17 +17,29 @@ export interface PortalResponse {
   text(): Promise<string>;
 }
 
-export type PortalFetcher = (url: string) => Promise<PortalResponse>;
+export type PortalFetcher = (url: string, options?: { signal?: AbortSignal }) => Promise<PortalResponse>;
 export type TyphoonLoader = () => Promise<Typhoon[]>;
 
 const DEFAULT_PORTAL_URL = 'https://typhoon.slt.zj.gov.cn/Api/TyphoonList/Default';
+const DEFAULT_FETCH_TIMEOUT_MS = 10_000;
 
 export function createPortalLoader(
   upstreamUrl = process.env.TYPHOON_API_URL ?? DEFAULT_PORTAL_URL,
   fetcher: PortalFetcher = fetch,
+  timeoutMs = Number(process.env.TYPHOON_FETCH_TIMEOUT_MS ?? DEFAULT_FETCH_TIMEOUT_MS),
 ): TyphoonLoader {
   return async () => {
-    const response = await fetcher(upstreamUrl);
+    const controller = new AbortController();
+    const timeout = setTimeout(() => {
+      controller.abort(new Error(`Typhoon portal request timed out after ${timeoutMs}ms`));
+    }, timeoutMs);
+
+    let response: PortalResponse;
+    try {
+      response = await fetcher(upstreamUrl, { signal: controller.signal });
+    } finally {
+      clearTimeout(timeout);
+    }
 
     if (!response.ok) {
       throw new Error(`Portal request failed with status ${response.status}`);

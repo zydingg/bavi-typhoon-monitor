@@ -1,11 +1,13 @@
 import { useEffect, useRef } from 'react';
-import { init, use } from 'echarts/core';
-import { LineChart, EffectScatterChart } from 'echarts/charts';
-import { GridComponent, TooltipComponent } from 'echarts/components';
+import { init, registerMap, use } from 'echarts/core';
+import { EffectScatterChart, LinesChart } from 'echarts/charts';
+import { GeoComponent, TooltipComponent } from 'echarts/components';
 import { CanvasRenderer } from 'echarts/renderers';
+import typhoonBasinMap from './assets/typhoon-basin.geo.json';
 import type { TrackPoint, TyphoonSnapshot } from './types.js';
 
-use([LineChart, EffectScatterChart, GridComponent, TooltipComponent, CanvasRenderer]);
+use([EffectScatterChart, GeoComponent, LinesChart, TooltipComponent, CanvasRenderer]);
+registerMap('typhoon-basin', typhoonBasinMap as Parameters<typeof registerMap>[1]);
 
 interface DashboardProps {
   snapshot: TyphoonSnapshot;
@@ -64,7 +66,7 @@ function ForecastCard({ label, point }: { label: string; point?: TrackPoint }) {
   );
 }
 
-function TrajectoryChart({ current, history, forecast }: {
+function LegacyTrajectoryChart({ current, history, forecast }: {
   current: TrackPoint;
   history: TrackPoint[];
   forecast: TrackPoint[];
@@ -82,6 +84,14 @@ function TrajectoryChart({ current, history, forecast }: {
     chart.setOption({
       animationDuration: 500,
       backgroundColor: 'transparent',
+      geo: {
+        map: 'typhoon-basin',
+        roam: true,
+        center: [125, 25],
+        zoom: 1.45,
+        itemStyle: { areaColor: '#123e57', borderColor: '#4d89a6', borderWidth: 1 },
+        emphasis: { itemStyle: { areaColor: '#1c5e7d' } },
+      },
       grid: { top: 30, right: 32, bottom: 42, left: 48 },
       tooltip: {
         trigger: 'item',
@@ -107,6 +117,31 @@ function TrajectoryChart({ current, history, forecast }: {
       ],
     });
 
+    chart.setOption({
+      animationDuration: 500,
+      backgroundColor: 'transparent',
+      geo: {
+        map: 'typhoon-basin',
+        roam: true,
+        center: [125, 25],
+        zoom: 1.45,
+        itemStyle: { areaColor: '#123e57', borderColor: '#4d89a6', borderWidth: 1 },
+        emphasis: { itemStyle: { areaColor: '#1c5e7d' } },
+      },
+      tooltip: {
+        trigger: 'item',
+        formatter: (params: { value?: number[]; data?: { value?: number[] } }) => {
+          const [longitude, latitude] = params.value ?? params.data?.value ?? [];
+          return `${longitude?.toFixed(1)}°E, ${latitude?.toFixed(1)}°N`;
+        },
+      },
+      series: [
+        { name: 'Observed track', type: 'lines', coordinateSystem: 'geo', polyline: true, data: [{ coords: historyCoordinates }], lineStyle: { color: '#38d7ff', width: 3 } },
+        { name: 'Forecast track', type: 'lines', coordinateSystem: 'geo', polyline: true, data: [{ coords: forecastCoordinates }], lineStyle: { color: '#ffc857', width: 2, type: 'dashed' } },
+        { name: 'Current center', type: 'effectScatter', coordinateSystem: 'geo', data: [{ value: [current.longitude, current.latitude] }], symbolSize: 16, rippleEffect: { scale: 2.8 }, itemStyle: { color: '#ff6b4a' } },
+      ],
+    }, { notMerge: true });
+
     const resize = () => chart.resize();
     const resizeObserver = typeof ResizeObserver === 'undefined'
       ? undefined
@@ -121,6 +156,62 @@ function TrajectoryChart({ current, history, forecast }: {
   }, [current, forecast, history]);
 
   return <div ref={chartElement} className="trajectory-chart" role="img" aria-label="台风轨迹海域图，横轴为经度，纵轴为纬度" />;
+}
+
+function TrajectoryChart({ current, history, forecast }: {
+  current: TrackPoint;
+  history: TrackPoint[];
+  forecast: TrackPoint[];
+}) {
+  const chartElement = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const element = chartElement.current;
+    if (!element) return;
+
+    const chart = init(element);
+    const observedCoordinates = [...history, current].map((point) => [point.longitude, point.latitude]);
+    const forecastCoordinates = [current, ...forecast].map((point) => [point.longitude, point.latitude]);
+
+    chart.setOption({
+      animationDuration: 500,
+      backgroundColor: 'transparent',
+      geo: {
+        map: 'typhoon-basin',
+        roam: true,
+        center: [125, 25],
+        zoom: 1.45,
+        itemStyle: { areaColor: '#123e57', borderColor: '#4d89a6', borderWidth: 1 },
+        emphasis: { itemStyle: { areaColor: '#1c5e7d' } },
+      },
+      tooltip: {
+        trigger: 'item',
+        formatter: (params: { value?: number[]; data?: { value?: number[] } }) => {
+          const [longitude, latitude] = params.value ?? params.data?.value ?? [];
+          return `${longitude?.toFixed(1)}°E, ${latitude?.toFixed(1)}°N`;
+        },
+      },
+      series: [
+        { name: 'Observed track', type: 'lines', coordinateSystem: 'geo', polyline: true, data: [{ coords: observedCoordinates }], lineStyle: { color: '#38d7ff', width: 3 } },
+        { name: 'Forecast track', type: 'lines', coordinateSystem: 'geo', polyline: true, data: [{ coords: forecastCoordinates }], lineStyle: { color: '#ffc857', width: 2, type: 'dashed' } },
+        { name: 'Current center', type: 'effectScatter', coordinateSystem: 'geo', data: [{ value: [current.longitude, current.latitude] }], symbolSize: 16, rippleEffect: { scale: 2.8 }, itemStyle: { color: '#ff6b4a' } },
+      ],
+    });
+
+    const resize = () => chart.resize();
+    const resizeObserver = typeof ResizeObserver === 'undefined'
+      ? undefined
+      : new ResizeObserver(resize);
+    resizeObserver?.observe(element);
+    if (!resizeObserver) window.addEventListener('resize', resize);
+    return () => {
+      resizeObserver?.disconnect();
+      if (!resizeObserver) window.removeEventListener('resize', resize);
+      chart.dispose();
+    };
+  }, [current, forecast, history]);
+
+  return <div ref={chartElement} className="trajectory-chart" role="img" aria-label="Typhoon trajectory map" />;
 }
 
 export function Dashboard({ snapshot, requestError }: DashboardProps) {

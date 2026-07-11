@@ -8,6 +8,7 @@ vi.mock('./api.js', () => ({ getCurrentTyphoon: vi.fn() }));
 
 vi.mock('echarts/core', () => ({
   init: vi.fn(() => ({ setOption: vi.fn(), resize: vi.fn(), dispose: vi.fn() })),
+  registerMap: vi.fn(),
   use: vi.fn(),
 }));
 
