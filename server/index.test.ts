@@ -1,0 +1,75 @@
+import { once } from 'node:events';
+import { request } from 'node:http';
+import type { AddressInfo } from 'node:net';
+import { expect, test, vi } from 'vitest';
+import { createApp, startServer, startTyphoonServer } from './index';
+import { TyphoonService } from './typhoon-service.js';
+
+const point = { observedAt: '2026-07-10T08:00:00Z', longitude: 122.3, latitude: 24.7, forecast: false };
+const storm = { id: '2601', name: 'Storm 2601', level: 'Typhoon', current: point, history: [point], forecast: [], movementDirection: 'Northwest' };
+
+function getJson(port: number): Promise<{ statusCode: number; body: unknown }> {
+  return new Promise((resolve, reject) => {
+    const client = request({ host: '127.0.0.1', port, path: '/api/typhoon/current' }, (response) => {
+      let body = '';
+      response.setEncoding('utf8');
+      response.on('data', (chunk: string) => { body += chunk; });
+      response.once('end', () => {
+        try { resolve({ statusCode: response.statusCode ?? 0, body: JSON.parse(body) }); } catch (error) { reject(error); }
+      });
+    });
+    client.once('error', reject);
+    client.end();
+  });
+}
+
+test('starts the application on the requested port', async () => {
+  const server = startServer(createApp(), 0);
+  await once(server, 'listening');
+  expect((server.address() as AddressInfo).port).toBeGreaterThan(0);
+  await new Promise<void>((resolve, reject) => server.close((error) => (error ? reject(error) : resolve())));
+});
+
+test('wires a supplied service to the current typhoon endpoint', async () => {
+  const service = new TyphoonService(async () => []);
+  await service.refresh();
+  const server = startServer(createApp(service), 0);
+  try {
+    await once(server, 'listening');
+    const response = await getJson((server.address() as AddressInfo).port);
+    expect(response.statusCode).toBe(200);
+    expect(response.body).toMatchObject({ status: 'empty', selected: null, storms: [], source: 'QWeather Tropical Cyclone API' });
+  } finally {
+    await new Promise<void>((resolve, reject) => server.close((error) => (error ? reject(error) : resolve())));
+  }
+});
+
+test('refreshes upstream on the server interval and returns a stale snapshot after a failed follow-up', async () => {
+  vi.useFakeTimers();
+  vi.stubEnv('TYPHOON_REFRESH_SECONDS', '600');
+  const loader = vi.fn().mockResolvedValueOnce([storm]).mockRejectedValueOnce(new Error('upstream unavailable'));
+  const service = new TyphoonService(loader);
+  const server = await startTyphoonServer(0, service);
+  try {
+    expect(loader).toHaveBeenCalledTimes(1);
+    expect(service.snapshot()).toMatchObject({ status: 'live', selected: { id: '2601' } });
+    await vi.advanceTimersByTimeAsync(600_000);
+    expect(loader).toHaveBeenCalledTimes(2);
+    expect(service.snapshot()).toMatchObject({ status: 'stale', selected: { id: '2601' } });
+  } finally {
+    await new Promise<void>((resolve, reject) => server.close((error) => (error ? reject(error) : resolve())));
+    vi.useRealTimers();
+    vi.unstubAllEnvs();
+  }
+});
+
+test('starts and exposes an error snapshot after the initial loader fails', async () => {
+  const service = new TyphoonService(async () => { throw new Error('upstream timed out'); });
+  const server = await startTyphoonServer(0, service);
+  try {
+    const response = await getJson((server.address() as AddressInfo).port);
+    expect(response.body).toMatchObject({ status: 'error', selected: null, storms: [] });
+  } finally {
+    await new Promise<void>((resolve, reject) => server.close((error) => (error ? reject(error) : resolve())));
+  }
+});
