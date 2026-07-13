@@ -7,9 +7,20 @@ import { getCurrentTyphoon } from './api.js';
 vi.mock('./api.js', () => ({ getCurrentTyphoon: vi.fn() }));
 
 vi.mock('echarts/core', () => ({
-  init: vi.fn(() => ({ setOption: vi.fn(), resize: vi.fn(), dispose: vi.fn() })),
+  init: vi.fn(() => ({
+    setOption: vi.fn(),
+    resize: vi.fn(),
+    dispose: vi.fn(),
+    convertToPixel: vi.fn(() => [120, 80]),
+    on: vi.fn(),
+    off: vi.fn(),
+  })),
   registerMap: vi.fn(),
   use: vi.fn(),
+}));
+
+vi.mock('./wind-flow.js', () => ({
+  WindFlowLayer: ({ label }: { label: string }) => <canvas aria-label={label} />,
 }));
 
 const emptySnapshot = {
@@ -66,7 +77,7 @@ test('renders a fetched error snapshot as unavailable data', async () => {
   expect(await screen.findByText('实时数据暂不可用')).toBeTruthy();
 });
 
-test('shows the actual timestamp for sparse forecast data', () => {
+test('renders command center rails, circulation disclosure, and QWeather attribution from a live snapshot', () => {
   const observedAt = '2026-07-11T00:00:00.000Z';
   const sparseForecastAt = '2026-07-14T00:00:00.000Z';
 
@@ -81,16 +92,28 @@ test('shows the actual timestamp for sparse forecast data', () => {
           id: '2601',
           name: '海燕',
           level: '强台风',
-          current: { observedAt, longitude: 128, latitude: 22, forecast: false },
+          current: {
+            observedAt,
+            longitude: 128,
+            latitude: 22,
+            windMps: 38,
+            pressureHpa: 945,
+            forecast: false,
+          },
           history: [],
           forecast: [{ observedAt: sparseForecastAt, longitude: 132, latitude: 25, windMps: 30, forecast: true }],
           movementDirection: '西北',
+          movementSpeedKph: 20,
         },
       }}
     />,
   );
 
-  expect(screen.getAllByText(`预报时刻：${sparseForecastAt}`)).toHaveLength(2);
+  expect(screen.getByLabelText('台风实时指标')).toBeTruthy();
+  expect(screen.getByLabelText('未来路径预报')).toBeTruthy();
+  expect(screen.getByText('台风环流示意')).toBeTruthy();
+  expect(screen.getByLabelText('台风环流示意')).toBeInstanceOf(HTMLCanvasElement);
+  expect(screen.getByText(`预报时刻：${sparseForecastAt}`)).toBeTruthy();
   expect(screen.getByText('QWeather Tropical Cyclone API')).toBeTruthy();
   const link = screen.getByRole('link', { name: '查看和风天气详情' });
   expect(link.getAttribute('href')).toBe('https://www.qweather.com/typhoon/2601.html');
