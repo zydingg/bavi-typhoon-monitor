@@ -102,13 +102,49 @@ test('renders command center rails and QWeather attribution without a synthetic 
   expect(screen.getByLabelText('台风实时指标')).toBeTruthy();
   expect(screen.getByLabelText('未来路径预报')).toBeTruthy();
   expect(screen.queryByLabelText('台风环流示意')).toBeNull();
-  expect(screen.getByText(`预报时刻：${sparseForecastAt}`)).toBeTruthy();
+  expect(screen.getByText('+72h')).toBeTruthy();
   expect(screen.getByText('QWeather Tropical Cyclone API')).toBeTruthy();
   const link = screen.getByRole('link', { name: '查看和风天气详情' });
   expect(link.getAttribute('href')).toBe('https://www.qweather.com/typhoon/2601.html');
   expect(link.getAttribute('target')).toBe('_blank');
   expect(link.getAttribute('rel')).toBe('noreferrer');
   expect(screen.queryByLabelText('中心附近实况')).toBeNull();
+});
+
+test('renders fixed-hour forecast nodes with immediate coastal fallbacks', () => {
+  const current = { observedAt: '2026-07-13T00:00:00+08:00', longitude: 121, latitude: 24, forecast: false };
+  const atHour = (hours: number, longitude: number, latitude: number) => ({
+    observedAt: new Date(Date.parse(current.observedAt) + hours * 3_600_000).toISOString(),
+    longitude,
+    latitude,
+    windMps: 30,
+    pressureHpa: 945,
+    forecast: true,
+  });
+  const snapshotWithCurrentAndForecasts = {
+    status: 'live' as const,
+    source: 'QWeather Tropical Cyclone API' as const,
+    selected: {
+      id: 'NP2026',
+      name: '巴威',
+      level: '台风',
+      current,
+      history: [],
+      forecast: [atHour(12, 122.5, 23.6), atHour(96, 132, 30)],
+      movementDirection: '西北',
+    },
+    storms: [],
+  };
+
+  mockLoadAmap.mockResolvedValue({} as never);
+
+  render(<Dashboard snapshot={snapshotWithCurrentAndForecasts} />);
+
+  expect(screen.getByText('+12h')).toBeTruthy();
+  expect(screen.getByText('+96h')).toBeTruthy();
+  expect(screen.getAllByText(/暂无预报/)).toHaveLength(5);
+  expect(screen.getByText(/台北附近/)).toBeTruthy();
+  expect(screen.getAllByText('30 m/s · 945 hPa')).toHaveLength(2);
 });
 
 test('hides the QWeather link when the snapshot has no fxLink', () => {

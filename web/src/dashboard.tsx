@@ -26,7 +26,9 @@ export function Dashboard({ snapshot, requestError }: DashboardProps) {
           <TrajectoryMap storm={storm} />
         </section>
         <ForecastRail
+          current={storm.current}
           forecast={storm.forecast}
+          level={storm.level}
           source={snapshot.source}
           updatedAt={snapshot.updatedAt}
           fxLink={snapshot.fxLink}

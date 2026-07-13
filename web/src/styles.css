@@ -272,6 +272,68 @@ h2 { font-size: clamp(1.08rem, 1.35vw, 1.34rem); }
   font-variant-numeric: tabular-nums;
 }
 
+.forecast-arrival-card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.68rem;
+  border-top: 1px solid oklch(0.62 0.055 222 / 0.22);
+  border-bottom: 1px solid oklch(0.62 0.055 222 / 0.13);
+  padding: 0.62rem 0;
+}
+
+.forecast-arrival-hour {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.38rem;
+  color: var(--forecast-amber);
+  font-size: 0.73rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.forecast-arrival-hour::before {
+  width: 0.4rem;
+  height: 0.4rem;
+  content: "";
+  background: currentColor;
+  transform: rotate(45deg);
+}
+
+.forecast-arrival-place {
+  margin: 0;
+  color: var(--ink-high);
+  font-size: 0.92rem;
+  font-weight: 760;
+  line-height: 1.25;
+  text-wrap: balance;
+}
+
+.forecast-arrival-meta {
+  margin: 0.18rem 0 0;
+  color: var(--ink-muted);
+  font-size: 0.7rem;
+  line-height: 1.35;
+  white-space: nowrap;
+}
+
+.forecast-arrival-strength {
+  justify-self: end;
+  color: var(--alert-red);
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.forecast-arrival-card-unavailable .forecast-arrival-place {
+  color: var(--ink-muted);
+  font-size: 0.78rem;
+  font-weight: 650;
+}
+
 .source-note {
   display: grid;
   gap: 0.52rem;

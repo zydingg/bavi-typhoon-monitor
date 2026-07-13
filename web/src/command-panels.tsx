@@ -1,3 +1,7 @@
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { loadAmap } from './amap-loader.js';
+import { buildForecastNodes, nearestCoastalCity } from './forecast-nodes.js';
+import { createForecastPlaceResolver, type AmapGeocoderApi } from './forecast-place-resolver.js';
 import type { TrackPoint, TyphoonSnapshot } from './types.js';
 
 interface CommandHeaderProps {
@@ -13,7 +17,9 @@ interface MetricRailProps {
 }
 
 interface ForecastRailProps {
+  current: TrackPoint;
   forecast: TrackPoint[];
+  level: string;
   source: TyphoonSnapshot['source'];
   updatedAt?: string;
   fxLink?: string;
@@ -42,6 +48,44 @@ function MetricCard({ label, value, detail }: { label: string; value: string; de
       <p>{label}</p>
       <strong>{value}</strong>
       {detail ? <span>{detail}</span> : null}
+    </section>
+  );
+}
+
+const pointKey = (point: TrackPoint) => `${point.longitude.toFixed(3)},${point.latitude.toFixed(3)}`;
+
+function ForecastArrivalCard({
+  hoursAhead,
+  point,
+  level,
+  places,
+}: {
+  hoursAhead: number;
+  point?: TrackPoint;
+  level: string;
+  places: Record<string, string>;
+}) {
+  const hour = `+${hoursAhead}h`;
+
+  if (!point) {
+    return (
+      <section className="forecast-arrival-card forecast-arrival-card-unavailable">
+        <time className="forecast-arrival-hour">{hour}</time>
+        <span className="forecast-arrival-place">暂无预报</span>
+      </section>
+    );
+  }
+
+  const place = places[pointKey(point)] ?? `${nearestCoastalCity(point.longitude, point.latitude)}附近`;
+
+  return (
+    <section className="forecast-arrival-card">
+      <time className="forecast-arrival-hour" dateTime={point.observedAt}>{hour}</time>
+      <div>
+        <h3 className="forecast-arrival-place">{place}</h3>
+        <p className="forecast-arrival-meta">{point.latitude.toFixed(1)}°N / {point.longitude.toFixed(1)}°E · {level}</p>
+      </div>
+      <strong className="forecast-arrival-strength">{formatNumber(point.windMps, 'm/s')} · {formatNumber(point.pressureHpa, 'hPa')}</strong>
     </section>
   );
 }
@@ -113,15 +157,46 @@ export function MetricRail({ current, history, movementDirection, movementSpeedK
   );
 }
 
-export function ForecastRail({ forecast, source, updatedAt, fxLink }: ForecastRailProps) {
-  const forecastPoints = [...forecast].sort((left, right) => Date.parse(left.observedAt) - Date.parse(right.observedAt));
+export function ForecastRail({ current, forecast, level, source, updatedAt, fxLink }: ForecastRailProps) {
+  const nodes = useMemo(() => buildForecastNodes(current, forecast), [current, forecast]);
+  const resolver = useRef<ReturnType<typeof createForecastPlaceResolver>>();
+  const [places, setPlaces] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    let active = true;
+    const points = nodes.flatMap(({ point }) => point ? [point] : []);
+
+    void loadAmap()
+      .then((amap) => {
+        resolver.current ??= createForecastPlaceResolver(amap as AmapGeocoderApi);
+        return Promise.all(points.map(async (point) => {
+          const key = pointKey(point);
+          const place = await resolver.current!(point);
+          return [key, place] as const;
+        }));
+      })
+      .then((entries) => {
+        if (active) setPlaces(Object.fromEntries(entries));
+      })
+      .catch(() => undefined);
+
+    return () => {
+      active = false;
+    };
+  }, [nodes]);
 
   return (
     <aside className="forecast-panel" aria-label="未来路径预报">
       <div className="panel-heading"><div><p className="eyebrow">FORECAST</p><h2>未来路径预报</h2></div></div>
-      {forecastPoints.length
-        ? forecastPoints.map((point) => <ForecastCard key={`${point.observedAt}-${point.latitude}-${point.longitude}`} point={point} />)
-        : <section className="forecast-card"><span>暂无可用预报节点</span></section>}
+      {nodes.map(({ hoursAhead, point }) => (
+        <ForecastArrivalCard
+          key={hoursAhead}
+          hoursAhead={hoursAhead}
+          point={point}
+          level={level}
+          places={places}
+        />
+      ))}
       <section className="source-note">
         <p>数据来源</p>
         <strong>{source}</strong>
