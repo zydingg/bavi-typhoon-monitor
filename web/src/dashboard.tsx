@@ -23,7 +23,6 @@ export function Dashboard({ snapshot, requestError }: DashboardProps) {
         />
         <section className="trajectory-panel">
           <div className="panel-heading"><div><p className="eyebrow">TRAJECTORY MAP</p><h2>台风轨迹海域</h2></div><span>实况 / 预报</span></div>
-          <p>台风环流示意</p>
           <TrajectoryMap storm={storm} />
         </section>
         <ForecastRail

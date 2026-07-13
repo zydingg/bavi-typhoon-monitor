@@ -146,7 +146,7 @@ h2 { font-size: clamp(1.08rem, 1.35vw, 1.34rem); }
 
 .trajectory-panel {
   display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
   min-height: min(78vh, 860px);
   padding: clamp(0.85rem, 1.25vw, 1.15rem);
   overflow: hidden;
@@ -203,14 +203,6 @@ h2 { font-size: clamp(1.08rem, 1.35vw, 1.34rem); }
   width: 100%;
   height: 100%;
   min-height: 100%;
-}
-
-.wind-flow-layer,
-.trajectory-panel canvas[aria-label="台风环流示意"] {
-  position: absolute;
-  z-index: 2;
-  inset: 0;
-  pointer-events: none;
 }
 
 .forecast-panel {

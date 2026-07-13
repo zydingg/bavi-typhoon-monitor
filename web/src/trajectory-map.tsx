@@ -1,10 +1,9 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { init, registerMap, use } from 'echarts/core';
 import { EffectScatterChart, LinesChart } from 'echarts/charts';
 import { GeoComponent, TooltipComponent } from 'echarts/components';
 import { CanvasRenderer } from 'echarts/renderers';
 import typhoonBasinMap from './assets/typhoon-basin.geo.json';
-import { WindFlowLayer } from './wind-flow.js';
 import type { Typhoon } from './types.js';
 
 use([EffectScatterChart, GeoComponent, LinesChart, TooltipComponent, CanvasRenderer]);
@@ -29,7 +28,6 @@ function radiusSeries(storm: Typhoon) {
 
 export function TrajectoryMap({ storm }: { storm: Typhoon }) {
   const chartElement = useRef<HTMLDivElement>(null);
-  const [windCenter, setWindCenter] = useState<{ x: number; y: number } | null>(null);
 
   useEffect(() => {
     const element = chartElement.current;
@@ -38,13 +36,6 @@ export function TrajectoryMap({ storm }: { storm: Typhoon }) {
     const chart = init(element);
     const observedCoordinates = [...storm.history, storm.current].map((point) => [point.longitude, point.latitude]);
     const forecastCoordinates = [storm.current, ...storm.forecast].map((point) => [point.longitude, point.latitude]);
-    const syncWindCenter = () => {
-      const pixel = chart.convertToPixel({ geoIndex: 0 }, [storm.current.longitude, storm.current.latitude]);
-      if (Array.isArray(pixel) && typeof pixel[0] === 'number' && typeof pixel[1] === 'number') {
-        setWindCenter({ x: pixel[0], y: pixel[1] });
-      }
-    };
-
     chart.setOption({
       animationDuration: 500,
       backgroundColor: 'transparent',
@@ -72,27 +63,20 @@ export function TrajectoryMap({ storm }: { storm: Typhoon }) {
       ],
     });
 
-    chart.on('finished', syncWindCenter);
-    chart.on('georoam', syncWindCenter);
-    syncWindCenter();
     const resize = () => {
       chart.resize();
-      syncWindCenter();
     };
     window.addEventListener('resize', resize);
 
     return () => {
       window.removeEventListener('resize', resize);
-      chart.off('finished', syncWindCenter);
-      chart.off('georoam', syncWindCenter);
       chart.dispose();
     };
   }, [storm]);
 
   return (
-    <div style={{ position: 'relative' }}>
+    <div>
       <div ref={chartElement} className="trajectory-chart" />
-      <WindFlowLayer center={windCenter} intensity={storm.current.windMps ?? 20} label="台风环流示意" />
     </div>
   );
 }
