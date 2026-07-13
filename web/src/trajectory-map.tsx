@@ -73,6 +73,7 @@ export function TrajectoryMap({ storm }: { storm: Typhoon }) {
     });
 
     chart.on('finished', syncWindCenter);
+    chart.on('georoam', syncWindCenter);
     syncWindCenter();
     const resize = () => {
       chart.resize();
@@ -83,6 +84,7 @@ export function TrajectoryMap({ storm }: { storm: Typhoon }) {
     return () => {
       window.removeEventListener('resize', resize);
       chart.off('finished', syncWindCenter);
+      chart.off('georoam', syncWindCenter);
       chart.dispose();
     };
   }, [storm]);

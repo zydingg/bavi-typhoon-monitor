@@ -1,4 +1,5 @@
 import { act, cleanup, render, screen } from '@testing-library/react';
+import { init } from 'echarts/core';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { App } from './App.js';
 import { Dashboard } from './dashboard.js';
@@ -130,6 +131,14 @@ test('renders command center rails, circulation disclosure, and QWeather attribu
   expect(link.getAttribute('target')).toBe('_blank');
   expect(link.getAttribute('rel')).toBe('noreferrer');
   expect(screen.queryByLabelText('中心附近实况')).toBeNull();
+});
+
+test('resynchronizes the circulation center after a map roam event', () => {
+  render(<App initialSnapshot={liveSnapshot} />);
+
+  const chart = vi.mocked(init).mock.results.at(-1)?.value as { on: ReturnType<typeof vi.fn> };
+
+  expect(chart.on).toHaveBeenCalledWith('georoam', expect.any(Function));
 });
 
 test('hides the QWeather link when the snapshot has no fxLink', () => {
