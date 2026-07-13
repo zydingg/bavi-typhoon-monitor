@@ -77,6 +77,16 @@ test('renders a fetched error snapshot as unavailable data', async () => {
   expect(await screen.findByText('实时数据暂不可用')).toBeTruthy();
 });
 
+test('does not mount the circulation canvas for empty or error snapshots', () => {
+  const { rerender } = render(<App initialSnapshot={emptySnapshot} />);
+
+  expect(screen.queryByLabelText('台风环流示意')).toBeNull();
+
+  rerender(<App initialSnapshot={{ ...emptySnapshot, status: 'error' }} />);
+
+  expect(screen.queryByLabelText('台风环流示意')).toBeNull();
+});
+
 test('renders command center rails, circulation disclosure, and QWeather attribution from a live snapshot', () => {
   const observedAt = '2026-07-11T00:00:00.000Z';
   const sparseForecastAt = '2026-07-14T00:00:00.000Z';

@@ -126,5 +126,5 @@ export function WindFlowLayer({ center, intensity, label }: WindFlowLayerProps) 
     };
   }, [center, intensity]);
 
-  return <canvas ref={canvasRef} aria-label={label} style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }} />;
+  return <canvas className="wind-flow-layer" ref={canvasRef} aria-label={label} style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }} />;
 }
