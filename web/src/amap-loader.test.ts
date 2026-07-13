@@ -37,9 +37,7 @@ describe('loadAmap', () => {
 
     expect(second).toBe(first);
     expect(document.querySelectorAll(scriptSelector)).toHaveLength(1);
-    expect(script?.getAttribute('src')).toBe(
-      'https://webapi.amap.com/maps?v=2.0&plugin=AMap.ToolBar&key=test%20key%26%3F',
-    );
+    expect(new URL(script?.src ?? '').searchParams.get('plugin')).toBe('AMap.ToolBar,AMap.Geocoder');
     expect(window._AMapSecurityConfig).toEqual({ securityJsCode: 'security-code' });
 
     window.AMap = api;

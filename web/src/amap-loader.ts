@@ -1,8 +1,10 @@
+import type { AmapGeocoderApi } from './forecast-place-resolver.js';
+
 export interface AmapMap {
   destroy(): void;
 }
 
-export interface AmapApi {
+export interface AmapApi extends AmapGeocoderApi {
   Map: new (container: string | HTMLElement, options?: Record<string, unknown>) => AmapMap;
 }
 
@@ -63,7 +65,7 @@ export function loadAmap(): Promise<AmapApi> {
       script = document.createElement('script');
       script.dataset.amapJsApi = 'true';
       script.dataset.amapLoadState = 'loading';
-      script.src = `https://webapi.amap.com/maps?v=2.0&plugin=AMap.ToolBar&key=${encodeURIComponent(key)}`;
+      script.src = `https://webapi.amap.com/maps?v=2.0&plugin=AMap.ToolBar,AMap.Geocoder&key=${encodeURIComponent(key)}`;
       script.async = true;
       script.addEventListener('load', resolveAmap, { once: true });
       script.addEventListener('error', rejectAmap, { once: true });
