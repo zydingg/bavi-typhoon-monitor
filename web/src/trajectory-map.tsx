@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { loadAmap } from './amap-loader.js';
 import { toAmapCoordinate } from './amap-coordinate.js';
+import { TYPHOON_MARKER_CONTENT, TYPHOON_MARKER_OFFSET } from './typhoon-marker.js';
 import type { TrackPoint, Typhoon } from './types.js';
 
 type AmapCoordinate = [number, number];
@@ -77,8 +78,8 @@ function updateOverlays(amap: AmapWithTrackOverlays, map: AmapMapInstance, storm
   } else {
     const currentMarker = new amap.Marker({
       position: currentCoordinate,
-      offset: [-8, -8],
-      content: '<span aria-hidden="true" style="display:block;width:16px;height:16px;border:2px solid #fff;border-radius:50%;background:#ff6b4a"></span>',
+      offset: TYPHOON_MARKER_OFFSET,
+      content: TYPHOON_MARKER_CONTENT,
     });
     currentMarker.setMap(map);
     overlays.currentMarker.current = currentMarker;

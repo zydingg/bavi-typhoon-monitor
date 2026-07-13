@@ -224,6 +224,60 @@ h2 { font-size: clamp(1.08rem, 1.35vw, 1.34rem); }
   color: var(--alert-red);
 }
 
+.typhoon-marker {
+  position: relative;
+  display: block;
+  width: 72px;
+  height: 72px;
+  pointer-events: none;
+}
+
+.typhoon-marker__band {
+  position: absolute;
+  display: block;
+  border: 2px solid transparent;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.typhoon-marker__band--outer {
+  inset: 2px;
+  border-top-color: #ffd166;
+  border-right-color: #ff9f1c;
+  border-bottom-color: oklch(0.76 0.15 74 / 0.45);
+  animation: typhoon-marker-spin 5.8s linear infinite;
+}
+
+.typhoon-marker__band--middle {
+  inset: 11px;
+  border-top-color: #ffb703;
+  border-left-color: #ffd166;
+  border-bottom-color: oklch(0.72 0.16 58 / 0.58);
+  animation: typhoon-marker-spin 4.1s linear infinite reverse;
+}
+
+.typhoon-marker__band--inner {
+  inset: 20px;
+  border-top-color: #ffe29a;
+  border-right-color: #ff8c1a;
+  border-left-color: oklch(0.78 0.15 77 / 0.7);
+  animation: typhoon-marker-spin 2.9s linear infinite;
+}
+
+.typhoon-marker__eye {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 18px;
+  height: 18px;
+  border: 2px solid #fff1bc;
+  border-radius: 50%;
+  background: radial-gradient(circle, #fff7cf 0 20%, #ffbe3f 36%, #f46a1f 72%);
+  box-shadow: 0 0 10px #ffb703, 0 0 20px oklch(0.74 0.17 62 / 0.78);
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+}
+
 .forecast-panel {
   display: flex;
   min-height: 0;
@@ -371,8 +425,13 @@ h2 { font-size: clamp(1.08rem, 1.35vw, 1.34rem); }
   to { background-position: 36px 36px, -36px 36px, 0 72px; }
 }
 
+@keyframes typhoon-marker-spin {
+  to { transform: rotate(360deg); }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .trajectory-panel > div:last-child::before { animation: none; }
+  .typhoon-marker__band { animation: none; }
 }
 
 @media (max-width: 699px) {

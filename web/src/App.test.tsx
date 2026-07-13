@@ -167,7 +167,7 @@ test('renders QWeather track coordinates on the accessible AMap container', asyn
   const Polyline = vi.fn()
     .mockReturnValueOnce(observedPolyline)
     .mockReturnValueOnce(forecastPolyline);
-  const Marker = vi.fn(() => marker);
+  const Marker = vi.fn((_: { content: string }) => marker);
   const current = { observedAt: '2026-07-11T08:00:00+08:00', longitude: 128, latitude: 22, forecast: false };
   const observed = { observedAt: '2026-07-11T02:00:00+08:00', longitude: 129, latitude: 21, forecast: false };
   const forecast = { observedAt: '2026-07-11T14:00:00+08:00', longitude: 126, latitude: 23, forecast: true };
@@ -228,7 +228,13 @@ test('renders QWeather track coordinates on the accessible AMap container', asyn
       strokeStyle: 'dashed',
     }),
   );
-  expect(Marker).toHaveBeenCalledWith(expect.objectContaining({ position: currentCoordinate }));
+  expect(Marker).toHaveBeenCalledWith(expect.objectContaining({
+    position: currentCoordinate,
+    offset: [-36, -36],
+    content: expect.stringContaining('typhoon-marker'),
+  }));
+  expect(Marker.mock.calls[0]![0].content).toContain('typhoon-marker__eye');
+  expect(Marker.mock.calls[0]![0].content).toContain('typhoon-marker__band--outer');
 });
 
 test('shows an AMap loading error without constructing overlays', async () => {
