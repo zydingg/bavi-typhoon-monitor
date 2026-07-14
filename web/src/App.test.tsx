@@ -111,6 +111,30 @@ test('renders command center rails and QWeather attribution without a synthetic 
   expect(screen.queryByLabelText('中心附近实况')).toBeNull();
 });
 
+test('formats recent observed timestamps without ISO separators or timezone suffixes', () => {
+  render(
+    <Dashboard
+      snapshot={{
+        status: 'live',
+        source: 'QWeather Tropical Cyclone API',
+        storms: [],
+        selected: {
+          id: '2601',
+          name: '巴威',
+          level: '台风',
+          current: { observedAt: '2026-07-14T13:00:00+08:00', longitude: 128, latitude: 22, forecast: false },
+          history: [{ observedAt: '2026-07-14T12:00:00+08:00', longitude: 127, latitude: 22, forecast: false }],
+          forecast: [],
+          movementDirection: '西北',
+        },
+      }}
+    />,
+  );
+
+  expect(screen.getByText('2026-07-14 12:00')).toBeTruthy();
+  expect(screen.queryByText('2026-07-14T12:00:00+08:00')).toBeNull();
+});
+
 test('renders fixed-hour forecast nodes with immediate coastal fallbacks', () => {
   const current = { observedAt: '2026-07-13T00:00:00+08:00', longitude: 121, latitude: 24, forecast: false };
   const atHour = (hours: number, longitude: number, latitude: number) => ({

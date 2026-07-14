@@ -33,13 +33,7 @@ const formatDateTime = (value: string | undefined) => {
   const date = new Date(value);
   return Number.isNaN(date.getTime())
     ? '最近一次成功数据'
-    : new Intl.DateTimeFormat('zh-CN', {
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: false,
-    }).format(date);
+    : `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
 };
 
 function MetricCard({ label, value, detail }: { label: string; value: string; detail?: string }) {
@@ -137,7 +131,7 @@ export function MetricRail({ current, history, movementDirection, movementSpeedK
         <p>最近实况点</p>
         {recentHistory.length ? (
           <ol>
-            {recentHistory.map((point) => <li key={`${point.observedAt}-${point.latitude}-${point.longitude}`}>{point.observedAt}</li>)}
+            {recentHistory.map((point) => <li key={`${point.observedAt}-${point.latitude}-${point.longitude}`}>{formatDateTime(point.observedAt)}</li>)}
           </ol>
         ) : <span>暂无可用实况点</span>}
       </section>
