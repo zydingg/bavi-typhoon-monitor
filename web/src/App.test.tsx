@@ -147,6 +147,63 @@ test('renders fixed-hour forecast nodes with immediate coastal fallbacks', () =>
   expect(screen.getAllByText('30 m/s · 945 hPa')).toHaveLength(2);
 });
 
+test('upgrades a coastal forecast fallback after asynchronous AMap reverse geocoding', async () => {
+  const current = { observedAt: '2026-07-13T00:00:00+08:00', longitude: 121, latitude: 24, forecast: false };
+  const forecast = {
+    observedAt: new Date(Date.parse(current.observedAt) + 12 * 3_600_000).toISOString(),
+    longitude: 122.5,
+    latitude: 23.6,
+    forecast: true,
+  };
+  let reverseGeocodeCallback: ((status: string, result: unknown) => void) | undefined;
+  const getAddress = vi.fn((_: [number, number], callback: (status: string, result: unknown) => void) => {
+    reverseGeocodeCallback = callback;
+  });
+  const Geocoder = vi.fn(() => ({ getAddress }));
+  const Map = vi.fn(() => ({ addControl: vi.fn(), destroy: vi.fn(), setCenter: vi.fn() }));
+  const ToolBar = vi.fn(() => ({}));
+  const Polyline = vi.fn(() => ({ setMap: vi.fn(), setPath: vi.fn() }));
+  const Marker = vi.fn(() => ({ setMap: vi.fn(), setPosition: vi.fn() }));
+
+  mockLoadAmap.mockResolvedValue({ Geocoder, Map, ToolBar, Polyline, Marker } as never);
+
+  render(
+    <Dashboard
+      snapshot={{
+        status: 'live',
+        source: 'QWeather Tropical Cyclone API',
+        selected: {
+          id: 'NP2026',
+          name: '巴威',
+          level: '台风',
+          current,
+          history: [],
+          forecast: [forecast],
+          movementDirection: '西北',
+        },
+        storms: [],
+      }}
+    />,
+  );
+
+  expect(screen.getByText('台北附近')).toBeTruthy();
+
+  await act(async () => {});
+
+  expect(getAddress).toHaveBeenCalledWith(toAmapCoordinate(forecast.longitude, forecast.latitude), expect.any(Function));
+  const resolveAddress = reverseGeocodeCallback;
+  if (!resolveAddress) throw new Error('AMap reverse-geocode callback was not registered');
+
+  await act(async () => {
+    resolveAddress('complete', {
+      regeocode: { addressComponent: { city: '宁波市' } },
+    });
+  });
+
+  expect(screen.getByText('宁波附近')).toBeTruthy();
+  expect(screen.queryByText('台北附近')).toBeNull();
+});
+
 test('hides the QWeather link when the snapshot has no fxLink', () => {
   render(<App initialSnapshot={liveSnapshot} />);
 
@@ -235,6 +292,59 @@ test('renders QWeather track coordinates on the accessible AMap container', asyn
   }));
   expect(Marker.mock.calls[0]![0].content).toContain('typhoon-marker__eye');
   expect(Marker.mock.calls[0]![0].content).toContain('typhoon-marker__band--outer');
+});
+
+test('updates the existing AMap marker position when the storm refreshes', async () => {
+  const map = {
+    addControl: vi.fn(),
+    destroy: vi.fn(),
+    setCenter: vi.fn(),
+  };
+  const observedPolyline = { setMap: vi.fn(), setPath: vi.fn() };
+  const forecastPolyline = { setMap: vi.fn(), setPath: vi.fn() };
+  const marker = { setMap: vi.fn(), setPosition: vi.fn() };
+  const Map = vi.fn(() => map);
+  const ToolBar = vi.fn(() => ({}));
+  const Polyline = vi.fn()
+    .mockReturnValueOnce(observedPolyline)
+    .mockReturnValueOnce(forecastPolyline);
+  const Marker = vi.fn(() => marker);
+  const current = { observedAt: '2026-07-11T08:00:00+08:00', longitude: 128, latitude: 22, forecast: false };
+  const refreshedCurrent = { ...current, longitude: 127, latitude: 23 };
+  const snapshot = {
+    status: 'live' as const,
+    source: 'QWeather Tropical Cyclone API' as const,
+    selected: {
+      id: '2601',
+      name: '巴威',
+      level: '台风',
+      current,
+      history: [],
+      forecast: [],
+      movementDirection: '西北',
+    },
+    storms: [],
+  };
+
+  mockLoadAmap.mockResolvedValue({ Map, ToolBar, Polyline, Marker } as never);
+
+  const { rerender } = render(<Dashboard snapshot={snapshot} />);
+
+  await act(async () => {});
+
+  rerender(
+    <Dashboard
+      snapshot={{
+        ...snapshot,
+        selected: { ...snapshot.selected, current: refreshedCurrent },
+      }}
+    />,
+  );
+
+  await act(async () => {});
+
+  expect(Marker).toHaveBeenCalledTimes(1);
+  expect(marker.setPosition).toHaveBeenCalledWith(toAmapCoordinate(refreshedCurrent.longitude, refreshedCurrent.latitude));
 });
 
 test('shows an AMap loading error without constructing overlays', async () => {

@@ -21,6 +21,20 @@ test('builds each fixed target from the nearest point no more than six hours awa
   ]);
 });
 
+test('accepts a forecast point exactly six hours from its fixed target', () => {
+  const sixHoursLate = point(18);
+  const twelveHourNode = buildForecastNodes(current, [sixHoursLate]).find(({ hoursAhead }) => hoursAhead === 12);
+
+  expect(twelveHourNode).toEqual({ hoursAhead: 12, point: sixHoursLate });
+});
+
+test('rejects a forecast point just beyond six hours from its fixed target', () => {
+  const justBeyondSixHoursLate = point(18 + 1 / 3_600_000);
+  const twelveHourNode = buildForecastNodes(current, [justBeyondSixHoursLate]).find(({ hoursAhead }) => hoursAhead === 12);
+
+  expect(twelveHourNode).toEqual({ hoursAhead: 12, point: undefined });
+});
+
 test('chooses a stable nearest coastal fallback for an ocean coordinate', () => {
   expect(nearestCoastalCity(122.5, 23.6)).toBe('台北');
 });

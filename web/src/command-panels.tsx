@@ -90,16 +90,6 @@ function ForecastArrivalCard({
   );
 }
 
-function ForecastCard({ point }: { point: TrackPoint }) {
-  return (
-    <section className="forecast-card">
-      <p>预报时刻：{point.observedAt}</p>
-      <strong>{formatNumber(point.windMps, 'm/s')}</strong>
-      <span>{point.latitude.toFixed(1)}°N / {point.longitude.toFixed(1)}°E</span>
-    </section>
-  );
-}
-
 function isQWeatherFxLink(fxLink: string | undefined) {
   if (!fxLink) return false;
 

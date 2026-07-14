@@ -69,7 +69,6 @@ input:focus-visible {
 
 .eyebrow,
 .metric-card p,
-.forecast-card p,
 .source-note p {
   margin: 0;
   color: var(--ink-muted);
@@ -287,7 +286,6 @@ h2 { font-size: clamp(1.08rem, 1.35vw, 1.34rem); }
 }
 
 .metric-card,
-.forecast-card,
 .source-note {
   border-top: 1px solid oklch(0.62 0.055 222 / 0.22);
   border-bottom: 1px solid oklch(0.62 0.055 222 / 0.13);
@@ -307,23 +305,11 @@ h2 { font-size: clamp(1.08rem, 1.35vw, 1.34rem); }
 }
 
 .metric-card span,
-.forecast-card span,
 .source-note span {
   color: var(--ink-muted);
   font-size: 0.78rem;
   line-height: 1.5;
   text-wrap: pretty;
-}
-
-.forecast-card {
-  display: grid;
-  gap: 0.45rem;
-}
-
-.forecast-card strong {
-  color: var(--forecast-amber);
-  font-size: 1.28rem;
-  font-variant-numeric: tabular-nums;
 }
 
 .forecast-arrival-card {
