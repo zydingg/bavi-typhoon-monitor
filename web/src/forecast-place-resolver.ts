@@ -22,11 +22,15 @@ export interface AmapGeocoderApi {
   Geocoder?: new (options?: Record<string, unknown>) => AmapGeocoder;
 }
 
+export function forecastPlaceCoordinateKey(point: Pick<TrackPoint, 'longitude' | 'latitude'>): string {
+  return `${point.longitude},${point.latitude}`;
+}
+
 export function createForecastPlaceResolver(amap: AmapGeocoderApi): (point: TrackPoint) => Promise<string> {
   const cache = new Map<string, Promise<string>>();
 
   return (point) => {
-    const key = `${point.longitude.toFixed(3)},${point.latitude.toFixed(3)}`;
+    const key = forecastPlaceCoordinateKey(point);
 
     if (!cache.has(key)) {
       cache.set(key, reverseGeocode(amap, point).catch(() => forecastFallbackLabel(point.longitude, point.latitude)));

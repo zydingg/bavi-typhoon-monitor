@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { loadAmap } from './amap-loader.js';
 import { buildForecastNodes, forecastFallbackLabel } from './forecast-nodes.js';
-import { createForecastPlaceResolver, type AmapGeocoderApi } from './forecast-place-resolver.js';
+import { createForecastPlaceResolver, forecastPlaceCoordinateKey, type AmapGeocoderApi } from './forecast-place-resolver.js';
 import type { TrackPoint, TyphoonSnapshot } from './types.js';
 
 interface CommandHeaderProps {
@@ -52,8 +52,6 @@ function MetricCard({ label, value, detail }: { label: string; value: string; de
   );
 }
 
-const pointKey = (point: TrackPoint) => `${point.longitude.toFixed(3)},${point.latitude.toFixed(3)}`;
-
 function ForecastArrivalCard({
   hoursAhead,
   point,
@@ -76,7 +74,7 @@ function ForecastArrivalCard({
     );
   }
 
-  const place = places[pointKey(point)] ?? forecastFallbackLabel(point.longitude, point.latitude);
+  const place = places[forecastPlaceCoordinateKey(point)] ?? forecastFallbackLabel(point.longitude, point.latitude);
 
   return (
     <section className="forecast-arrival-card">
@@ -160,7 +158,7 @@ export function ForecastRail({ current, forecast, level, source, updatedAt, fxLi
       .then((amap) => {
         resolver.current ??= createForecastPlaceResolver(amap as AmapGeocoderApi);
         return Promise.all(points.map(async (point) => {
-          const key = pointKey(point);
+          const key = forecastPlaceCoordinateKey(point);
           const place = await resolver.current!(point);
           return [key, place] as const;
         }));

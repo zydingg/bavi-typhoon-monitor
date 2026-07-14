@@ -1,6 +1,6 @@
 import { describe, expect, test, vi } from 'vitest';
 import { toAmapCoordinate } from './amap-coordinate.js';
-import { createForecastPlaceResolver } from './forecast-place-resolver.js';
+import { createForecastPlaceResolver, forecastPlaceCoordinateKey } from './forecast-place-resolver.js';
 
 const point = {
   observedAt: '2026-07-13T12:00:00+08:00',
@@ -10,7 +10,7 @@ const point = {
 };
 
 describe('createForecastPlaceResolver', () => {
-  test('uses a reverse-geocoded city and caches the coordinate', async () => {
+  test('uses a reverse-geocoded city and caches an identical coordinate', async () => {
     const getAddress = vi.fn((_: [number, number], callback: (status: string, result: unknown) => void) =>
       callback('complete', {
         regeocode: { addressComponent: { city: '宁波市', district: '鄞州区' } },
@@ -19,13 +19,34 @@ describe('createForecastPlaceResolver', () => {
     const resolve = createForecastPlaceResolver({ Geocoder: vi.fn(() => ({ getAddress })) } as never);
 
     await expect(resolve(point)).resolves.toBe('宁波附近');
-    await resolve({ ...point, longitude: 121.5004, latitude: 29.9004 });
+    await resolve({ ...point });
 
     expect(getAddress).toHaveBeenCalledTimes(1);
     expect(getAddress).toHaveBeenCalledWith(
       toAmapCoordinate(point.longitude, point.latitude),
       expect.any(Function),
     );
+  });
+
+  test('creates distinct keys for coordinates on opposite sides of the Sanya fallback boundary', () => {
+    const inside = { ...point, longitude: 109.5, latitude: 16.9014 };
+    const outside = { ...point, longitude: 109.5, latitude: 16.9010 };
+
+    expect(forecastPlaceCoordinateKey(inside)).toBe('109.5,16.9014');
+    expect(forecastPlaceCoordinateKey(outside)).toBe('109.5,16.901');
+    expect(forecastPlaceCoordinateKey(inside)).not.toBe(forecastPlaceCoordinateKey(outside));
+  });
+
+  test('keeps failed reverse-geocode fallbacks distinct across the strict Sanya boundary', async () => {
+    const getAddress = vi.fn((_: [number, number], callback: (status: string, result: unknown) => void) =>
+      callback('error', {}),
+    );
+    const resolve = createForecastPlaceResolver({ Geocoder: vi.fn(() => ({ getAddress })) } as never);
+
+    await expect(resolve({ ...point, longitude: 109.5, latitude: 16.9014 })).resolves.toBe('三亚附近');
+    await expect(resolve({ ...point, longitude: 109.5, latitude: 16.9010 })).resolves.toBe('近海海域');
+
+    expect(getAddress).toHaveBeenCalledTimes(2);
   });
 
   test('normalizes an array city before preferring it to the district', async () => {
@@ -83,5 +104,16 @@ describe('createForecastPlaceResolver', () => {
     } as never);
 
     await expect(resolve(point)).resolves.toBe('宁波附近');
+  });
+
+  test('uses the East China Sea fallback for a complete response without addressComponent', async () => {
+    const resolve = createForecastPlaceResolver({
+      Geocoder: vi.fn(() => ({
+        getAddress: (_: [number, number], callback: (status: string, result: unknown) => void) =>
+          callback('complete', { regeocode: {} }),
+      })),
+    } as never);
+
+    await expect(resolve({ ...point, longitude: 122.5, latitude: 23.6 })).resolves.toBe('东海海域');
   });
 });
