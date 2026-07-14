@@ -61,7 +61,18 @@ describe('createForecastPlaceResolver', () => {
       })),
     } as never);
 
-    await expect(resolve({ ...point, longitude: 122.5, latitude: 23.6 })).resolves.toBe('台北附近');
+    await expect(resolve({ ...point, longitude: 122.5, latitude: 23.6 })).resolves.toBe('东海海域');
+  });
+
+  test('uses a bounded Northeast Asia fallback when reverse geocoding fails', async () => {
+    const resolve = createForecastPlaceResolver({
+      Geocoder: vi.fn(() => ({
+        getAddress: (_: [number, number], callback: (status: string, result: unknown) => void) => callback('error', {}),
+      })),
+    } as never);
+
+    await expect(resolve({ ...point, longitude: 124.6, latitude: 39.4 })).resolves.toBe('丹东附近');
+    await expect(resolve({ ...point, longitude: 123, latitude: 34 })).resolves.toBe('黄海海域');
   });
 
   test('uses the coastal fallback for a complete response without an address', async () => {

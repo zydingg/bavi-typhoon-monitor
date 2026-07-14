@@ -1,5 +1,5 @@
 import { toAmapCoordinate } from './amap-coordinate.js';
-import { nearestCoastalCity } from './forecast-nodes.js';
+import { forecastFallbackLabel } from './forecast-nodes.js';
 import type { TrackPoint } from './types.js';
 
 interface AmapGeocoder {
@@ -29,7 +29,7 @@ export function createForecastPlaceResolver(amap: AmapGeocoderApi): (point: Trac
     const key = `${point.longitude.toFixed(3)},${point.latitude.toFixed(3)}`;
 
     if (!cache.has(key)) {
-      cache.set(key, reverseGeocode(amap, point).catch(() => `${nearestCoastalCity(point.longitude, point.latitude)}附近`));
+      cache.set(key, reverseGeocode(amap, point).catch(() => forecastFallbackLabel(point.longitude, point.latitude)));
     }
 
     return cache.get(key)!;

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { loadAmap } from './amap-loader.js';
-import { buildForecastNodes, nearestCoastalCity } from './forecast-nodes.js';
+import { buildForecastNodes, forecastFallbackLabel } from './forecast-nodes.js';
 import { createForecastPlaceResolver, type AmapGeocoderApi } from './forecast-place-resolver.js';
 import type { TrackPoint, TyphoonSnapshot } from './types.js';
 
@@ -76,7 +76,7 @@ function ForecastArrivalCard({
     );
   }
 
-  const place = places[pointKey(point)] ?? `${nearestCoastalCity(point.longitude, point.latitude)}附近`;
+  const place = places[pointKey(point)] ?? forecastFallbackLabel(point.longitude, point.latitude);
 
   return (
     <section className="forecast-arrival-card">

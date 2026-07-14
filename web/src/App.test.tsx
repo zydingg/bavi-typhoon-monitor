@@ -143,7 +143,7 @@ test('renders fixed-hour forecast nodes with immediate coastal fallbacks', () =>
   expect(screen.getByText('+12h')).toBeTruthy();
   expect(screen.getByText('+96h')).toBeTruthy();
   expect(screen.getAllByText(/暂无预报/)).toHaveLength(5);
-  expect(screen.getByText(/台北附近/)).toBeTruthy();
+  expect(screen.getByText(/东海海域/)).toBeTruthy();
   expect(screen.getAllByText('30 m/s · 945 hPa')).toHaveLength(2);
 });
 
@@ -186,7 +186,7 @@ test('upgrades a coastal forecast fallback after asynchronous AMap reverse geoco
     />,
   );
 
-  expect(screen.getByText('台北附近')).toBeTruthy();
+  expect(screen.getByText('东海海域')).toBeTruthy();
 
   await act(async () => {});
 
@@ -201,7 +201,7 @@ test('upgrades a coastal forecast fallback after asynchronous AMap reverse geoco
   });
 
   expect(screen.getByText('宁波附近')).toBeTruthy();
-  expect(screen.queryByText('台北附近')).toBeNull();
+  expect(screen.queryByText('东海海域')).toBeNull();
 });
 
 test('hides the QWeather link when the snapshot has no fxLink', () => {
